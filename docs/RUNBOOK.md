@@ -1,31 +1,22 @@
-Runbook (v0.1)
-==============
+# Runbook (MVP)
 
-Stale imports banner always on
-- Cause: no successful imports in >7 days.
-- Action: upload latest CSV; confirm import status success; banner clears on success.
+## Imports fail / parse errors
+- Check import status in DB `Import.status`.
+- If error is "Missing date column"/"Invalid Record Length", verify CSV format; headerless 3-col is supported (Date, Amount, Description).
+- Re-run upload; dedupe prevents duplicates.
 
-Import fails (CSV)
-- Check import history status/errors.
-- Verify CSV columns match Bendigo format; re-export if needed.
-- If dedupe skipped rows, ensure file isn’t duplicate; adjust description if truly new and retry.
+## Dashboard shows NaN/zero
+- Ensure budgets exist; reseed (`npm run prisma:seed`) or add budgets manually.
+- Check transactions exist for current period; ensure timezone/week start Monday.
+- If carry looks wrong, run ledger recompute: call `recomputeLedgerHistory(householdId)` from a one-off script.
 
-PDF unreadable
-- Marked needs_review/low confidence.
-- Action: fall back to CSV export; optionally manually enter missing transactions after parsing attempt.
+## Recategorisation
+- Use `/transactions` dropdown to change categories; dashboard will revalidate.
+- Update rules in `/rules`; re-import to apply automatically.
 
-Wrong categorisation
-- Override transaction category in Transactions page; create/edit rule; reorder priority if conflict.
+## Database maintenance
+- `docker compose logs db` for Postgres issues.
+- `prisma studio` for quick inspection.
 
-Rollover looks off
-- Verify budget effectiveFrom and period alignment; check fortnight epoch setting in Settings.
-- Recompute by reimporting sample or run diagnostic script (future).
-
-DB migration issue
-- Local: reset dev DB (docker-compose down -v; up; re-run migrate + seed).
-- Prod: roll forward with fix; avoid destructive resets.
-
-Access/login issues
-- Dev: use dev-bypass; ensure NODE_ENV=development.
-- Prod: check Supabase Auth settings; reset password via Supabase dashboard.
-
+## Credentials
+- Dev users: josh@example.com / kristy@example.com (password `password123`). Change in production.

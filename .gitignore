@@ -39,3 +39,11 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# Windows ADS metadata
+*:Zone.Identifier
+
+# Local artifacts
+storage/
+transactions.csv
+ParrisBudgetApp/

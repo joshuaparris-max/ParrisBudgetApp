@@ -17,9 +17,25 @@ function parseDate(value: string): Date {
     // ISO-like yyyy-mm-dd
     return new Date(value);
   }
-  // assume dd/mm/yyyy
-  const [day, month, year] = parts;
-  return new Date(Number(year), Number(month) - 1, Number(day));
+  if (parts.length < 3) {
+    return new Date(value);
+  }
+
+  const a = Number(parts[0]);
+  const b = Number(parts[1]);
+  const y = Number(parts[2]);
+
+  // Heuristic:
+  // - If first > 12 => treat as dd/mm
+  // - Else if second > 12 => treat as mm/dd
+  // - Else default to dd/mm (AU format)
+  if (a > 12) {
+    return new Date(y, b - 1, a);
+  }
+  if (b > 12) {
+    return new Date(y, a - 1, b);
+  }
+  return new Date(y, b - 1, a);
 }
 
 function parseAmount(value?: string) {
@@ -30,54 +46,99 @@ function parseAmount(value?: string) {
 
 type CsvRecord = Record<string, string>;
 
-function extractDate(row: CsvRecord) {
-  return row.Date || row["Transaction Date"] || row["Value Date"];
-}
+type Mapping = {
+  name: string;
+  headerless?: boolean;
+  columns?: string[];
+  dateFields?: string[];
+  descriptionFields?: string[];
+  amountFields?: string[];
+  debitFields?: string[];
+  creditFields?: string[];
+};
 
-function parseRecords(content: string): CsvRecord[] {
+const MAPPINGS: Mapping[] = [
+  {
+    name: "bendigo_headers",
+    headerless: false,
+    dateFields: ["Date", "Transaction Date", "Value Date"],
+    descriptionFields: ["Description", "Transaction Description", "Details", "Particulars"],
+    amountFields: ["Amount"],
+    debitFields: ["Debit", "Debit Amount"],
+    creditFields: ["Credit", "Credit Amount"],
+  },
+  {
+    name: "three_column_no_headers",
+    headerless: true,
+    columns: ["Date", "Amount", "Description"],
+    amountFields: ["Amount"],
+  },
+  {
+    name: "four_column_no_headers",
+    headerless: true,
+    columns: ["Date", "Amount", "Description", "Balance"],
+    amountFields: ["Amount"],
+  },
+];
+
+function parseWithMapping(content: string, mapping: Mapping): CsvRecord[] {
   return parse(content, {
-    columns: true,
+    columns: mapping.headerless ? mapping.columns : true,
     skip_empty_lines: true,
     trim: true,
     relax_column_count: true,
   }) as CsvRecord[];
 }
 
-export function parseBendigoCsv(content: string, householdId: string, accountId?: string | null) {
-  let records = parseRecords(content);
+function firstField(row: CsvRecord, fields?: string[]) {
+  if (!fields) return undefined;
+  for (const f of fields) {
+    const val = row[f];
+    if (val !== undefined) return val;
+  }
+  return undefined;
+}
 
-  // If the file had no headers, csv-parse will treat the first row as headers, leading to missing date.
-  // Detect this by checking for a missing date column and retry with explicit headers.
-  if (records.length && !extractDate(records[0])) {
-    records = parse(content, {
-      columns: ["Date", "Amount", "Description"],
-      skip_empty_lines: true,
-      trim: true,
-      relax_column_count: true,
-    }) as CsvRecord[];
+export function parseBendigoCsv(content: string, householdId: string, accountId?: string | null) {
+  let records: CsvRecord[] = [];
+  let usedMapping: Mapping | null = null;
+
+  for (const mapping of MAPPINGS) {
+    const parsed = parseWithMapping(content, mapping);
+    if (!parsed.length) continue;
+    const dateCandidate =
+      mapping.headerless && mapping.columns
+        ? parsed[0][mapping.columns[0]]
+        : firstField(parsed[0], mapping.dateFields);
+    if (!dateCandidate) continue;
+    records = parsed;
+    usedMapping = mapping;
+    break;
   }
 
-  if (records.length === 0) {
-    throw new Error("CSV appears empty");
+  if (!records.length || !usedMapping) {
+    throw new Error("CSV appears empty or missing date column");
   }
 
   const rows: ParsedTransaction[] = records.map((row) => {
-    const dateString = extractDate(row);
+    const dateString =
+      (usedMapping.headerless && usedMapping.columns && row[usedMapping.columns[0]]) ||
+      firstField(row, usedMapping.dateFields);
     if (!dateString) {
       throw new Error("Missing date column in CSV");
     }
     const description =
-      row.Description ||
-      row["Transaction Description"] ||
-      row.Details ||
-      row["Particulars"] ||
+      (usedMapping.headerless && usedMapping.columns && row[usedMapping.columns[2]]) ||
+      firstField(row, usedMapping.descriptionFields) ||
       "Unknown";
 
     const amountRaw =
-      row.Amount || row["Debit"] || row["Credit"] || row["Debit Amount"] || row["Credit Amount"];
+      firstField(row, usedMapping.amountFields) ||
+      firstField(row, usedMapping.debitFields) ||
+      firstField(row, usedMapping.creditFields);
 
-    const debit = parseAmount(row.Debit || row["Debit Amount"]);
-    const credit = parseAmount(row.Credit || row["Credit Amount"]);
+    const debit = parseAmount(firstField(row, usedMapping.debitFields));
+    const credit = parseAmount(firstField(row, usedMapping.creditFields));
     let amount = parseAmount(amountRaw);
     let direction: TransactionDirection = TransactionDirection.DEBIT;
 

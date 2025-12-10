@@ -1,30 +1,31 @@
-Deployment Guide (v0.1)
-=======================
+# Deployment Guide (dev/local focus)
 
-Local (WSL)
-- Requirements: Node 18+, pnpm|npm, Docker.
-- Steps:
-  1) cp .env.example .env.local and fill Supabase keys or local DB DSN.
-  2) docker-compose up -d (Postgres).
-  3) pnpm install
-  4) pnpm prisma migrate deploy
-  5) pnpm prisma db seed
-  6) pnpm dev
+## Prereqs
+- Node 20+, npm
+- Docker Desktop with WSL2 integration
 
-Prod (Vercel + Supabase)
-- Create Supabase project; enable Auth, Storage, Postgres.
-- Set env vars in Vercel: SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY (server), SUPABASE_ANON_KEY (client), DATABASE_URL (pooled), STORAGE_BUCKET.
-- Disable dev-bypass in prod (NODE_ENV=production).
-- Vercel deploy: connect repo; set build command (pnpm build) and install command.
-- Run Prisma migrations on deploy (using Supabase connection).
-- Storage: create bucket for imports/pdfs; configure RLS to household.
+## Setup
+```
+cp .env.example .env
+npm install
+docker compose up -d db
+npx prisma migrate dev --name init
+npm run prisma:seed
+```
 
-Cron
-- Vercel Scheduled Function daily to check stale imports (>7 days) and create alerts.
+## Run
+```
+npm run dev
+```
+Visit http://localhost:3000
 
-Domains & TLS
-- Use Vercel-managed domains; TLS via Vercel default.
+## Notes
+- Storage is local (`./storage`). To swap to Supabase Storage, replace `saveUpload` implementation.
+- Auth is credentials-only for dev. Rotate `NEXTAUTH_SECRET` in production.
+- Ledger recompute runs on each import; run `recomputeLedgerHistory` (script/hook) if you change budgets historically.
 
-Monitoring
-- Enable Supabase logs and Vercel function logs; see Observability plan.
-
+## Deploy (outline)
+- Provision Postgres (Supabase/Neon).
+- Set env vars (`DATABASE_URL`, `NEXTAUTH_SECRET`, `NEXTAUTH_URL`, `STORAGE_DIR` or S3/Supabase bucket).
+- Run `prisma migrate deploy` then `prisma db seed` (or custom seed).
+- Deploy Next.js app (Vercel or similar); ensure file uploads target your storage provider.

@@ -23,7 +23,8 @@ export function getPeriodBounds(
   reference = new Date(),
   options: { weekStartsOn?: 0 | 1 } = {},
 ): PeriodBounds {
-  const weekStartsOn = options.weekStartsOn ?? 1;
+  // Default to Sunday start (0) to match typical bank exports; can override to Monday via options.
+  const weekStartsOn = options.weekStartsOn ?? 0;
   switch (periodType) {
     case PeriodType.WEEK: {
       const start = startOfWeek(reference, { weekStartsOn });

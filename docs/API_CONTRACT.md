@@ -1,55 +1,20 @@
-API Contract (internal, v0.1)
-=============================
+# API Contract (MVP)
 
-Auth (Supabase)
-- Supabase Auth handles email/password; session available server-side; protected routes require session; dev bypass guarded by NODE_ENV=development.
+## Auth
+- Session via NextAuth credentials (email/password). Sign-in page `/login`.
+- Protected routes use middleware; unauthenticated users are redirected to `/login`.
 
-Imports
-- POST /api/imports/csv
-  - Body: { accountId, file (CSV multipart) }
-  - Behavior: store file, parse, dedupe, apply rules, create Transactions, create Import record with counts/status.
-  - Responses: 200 { importId, counts } | 400 parse/validation errors | 409 duplicate checksum.
-- GET /api/imports
-  - Query: pagination.
-  - Returns list with { id, filename, uploadedAt, status, counts } scoped to household.
+## Imports
+- `POST /import` (server action form): multipart with `file` (CSV) and optional `accountId`.
+- On success: transactions inserted (deduped), import record stored, ledger recomputed, revalidate dashboard/transactions.
+- Errors returned as `{ error: string }` via server action state.
 
-Transactions
-- GET /api/transactions
-  - Query: categoryId?, dateRange?, search?, limit/offset.
-  - Returns list with category, ruleSource/manual flag.
-- PATCH /api/transactions/:id
-  - Body: { categoryId } (manual override) | { note? }
+## Data entities (subset)
+- Household, Users, Accounts, Categories, Budgets/BudgetLines, Imports, Transactions, Rules, RolloverLedger.
+- Transactions dedupe on `householdId + dedupeHash(date|amount|description|account|direction)`.
+- Rules: first matching (ordered by `priority ASC`) wins.
+- Ledger: per-week carryIn/carryOut per category (week starts Monday, AU time assumed).
 
-Rules
-- GET /api/rules
-- POST /api/rules
-  - Body: { pattern, matchType, categoryId, priority }
-- PATCH /api/rules/:id
-  - Body: same fields; priority updates reorder list.
-- DELETE /api/rules/:id
-
-Budgets
-- GET /api/budgets/current
-  - Returns active budget lines derived for current period.
-- POST /api/budgets
-  - Body: { periodType=week, lines: [{categoryId, amount}], effectiveFrom }
-  - Behavior: creates new budget version effective from specified period start.
-
-Dashboard
-- GET /api/dashboard
-  - Returns: overall totals (budget/spend/available/remaining, traffic light, pacing), per-category aggregates, top merchants, freshness (days since last import).
-
-PDF (scaffold)
-- POST /api/imports/pdf
-  - Body: { accountId, file (PDF multipart) }
-  - Behavior: store file, parse candidates, reconcile, mark all as needs_review; no auto-create transactions.
-- GET /api/review
-  - Returns candidate list with confidence, match status.
-- POST /api/review/:id/actions
-  - Body: { action: approve|merge|ignore|edit, targetTransactionId?, edits? }
-
-Settings
-- GET /api/settings
-- PATCH /api/settings
-  - Body: { fortnightEpochStartDate?, timezone?, weekStart? (locked), accounts? }
-
+## Responses
+- All server actions return `{ success?: boolean; error?: string; ...payload }`.
+- Pages are server-rendered; no public REST API is exposed beyond Next.js routes.

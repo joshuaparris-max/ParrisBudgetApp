@@ -9,33 +9,12 @@ import { parseBendigoCsv } from "@/lib/csv";
 import { getHouseholdIdForUser } from "@/lib/households";
 import { prisma } from "@/lib/prisma";
 import { saveUpload } from "@/lib/storage";
+import { recomputeCurrentWeekLedger } from "@/lib/ledger";
+import { chooseCategoryFromRules } from "@/lib/rules";
 
 const importSchema = z.object({
   accountId: z.string().optional(),
 });
-
-function pickCategoryForDescription(description: string, rules: { pattern: string; matchType: string; categoryId: string; priority: number }[]) {
-  const lower = description.toLowerCase();
-  for (const rule of rules) {
-    if (rule.matchType === "CONTAINS" && lower.includes(rule.pattern.toLowerCase())) {
-      return rule.categoryId;
-    }
-    if (rule.matchType === "STARTS_WITH" && lower.startsWith(rule.pattern.toLowerCase())) {
-      return rule.categoryId;
-    }
-    if (rule.matchType === "REGEX") {
-      try {
-        const regex = new RegExp(rule.pattern, "i");
-        if (regex.test(description)) {
-          return rule.categoryId;
-        }
-      } catch (err) {
-        console.warn("Invalid rule regex", err);
-      }
-    }
-  }
-  return null;
-}
 
 type ImportResult =
   | { error: string }
@@ -105,7 +84,7 @@ export async function importCsvAction(
   });
 
   const transactionsToInsert = rows.map((row) => {
-    const categoryId = pickCategoryForDescription(row.description, rules);
+    const categoryId = chooseCategoryFromRules(row.description, rules);
     return {
       householdId,
       accountId: parsed.data.accountId,
@@ -134,6 +113,9 @@ export async function importCsvAction(
       processedTransactions: result.count,
     },
   });
+
+  // Recompute current week's ledger so dashboard reflects new spend.
+  await recomputeCurrentWeekLedger(householdId);
 
   revalidatePath("/dashboard");
   revalidatePath("/transactions");

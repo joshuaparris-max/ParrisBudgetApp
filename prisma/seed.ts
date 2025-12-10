@@ -64,17 +64,45 @@ async function seedAccounts(householdId: string) {
   }
 }
 
+type CategorySeed = {
+  name: string;
+  type: CategoryType;
+  sortOrder: number;
+  weekly?: number;
+};
+
 async function seedCategories(householdId: string) {
-  const categories = [
-    { name: "Income", type: CategoryType.INCOME, sortOrder: 1 },
-    { name: "Groceries", type: CategoryType.EXPENSE, sortOrder: 10 },
-    { name: "Fuel", type: CategoryType.EXPENSE, sortOrder: 20 },
-    { name: "Eating Out", type: CategoryType.EXPENSE, sortOrder: 30 },
-    { name: "Insurance", type: CategoryType.EXPENSE, sortOrder: 40 },
-    { name: "Internet", type: CategoryType.EXPENSE, sortOrder: 50 },
-    { name: "Tithe", type: CategoryType.EXPENSE, sortOrder: 60 },
-    { name: "Savings", type: CategoryType.EXPENSE, sortOrder: 70 },
-    { name: "Uncategorised", type: CategoryType.EXPENSE, sortOrder: 999 },
+  const categories: CategorySeed[] = [
+    // Income
+    { name: "Josh Work", type: CategoryType.INCOME, sortOrder: 1, weekly: 1516.73 },
+    { name: "Kristy Work", type: CategoryType.INCOME, sortOrder: 2, weekly: 616 },
+    { name: "Rental Income", type: CategoryType.INCOME, sortOrder: 3, weekly: 620 },
+    { name: "Family Tax Benefit", type: CategoryType.INCOME, sortOrder: 4, weekly: 60 },
+
+    // Expenses
+    { name: "Netflix", type: CategoryType.EXPENSE, sortOrder: 10, weekly: 2.3 },
+    { name: "ANMF", type: CategoryType.EXPENSE, sortOrder: 11, weekly: 9.2365 },
+    { name: "Spotify", type: CategoryType.EXPENSE, sortOrder: 12, weekly: 0.92 },
+    { name: "Groceries", type: CategoryType.EXPENSE, sortOrder: 20, weekly: 246.3 },
+    { name: "Loan repayments", type: CategoryType.EXPENSE, sortOrder: 21, weekly: 300 },
+    { name: "Fuel", type: CategoryType.EXPENSE, sortOrder: 22, weekly: 75 },
+    { name: "Medibank", type: CategoryType.EXPENSE, sortOrder: 23, weekly: 48.36 },
+    { name: "Tithe", type: CategoryType.EXPENSE, sortOrder: 24, weekly: 50 },
+    { name: "Rates", type: CategoryType.EXPENSE, sortOrder: 25, weekly: 42.1 },
+    { name: "Internet", type: CategoryType.EXPENSE, sortOrder: 26, weekly: 23 },
+    { name: "Gas", type: CategoryType.EXPENSE, sortOrder: 27, weekly: 37.67 },
+    { name: "Electricity", type: CategoryType.EXPENSE, sortOrder: 28, weekly: 29.2 },
+    { name: "Water", type: CategoryType.EXPENSE, sortOrder: 29, weekly: 32.96 },
+    { name: "RACV insurance (house)", type: CategoryType.EXPENSE, sortOrder: 30, weekly: 29.47 },
+    { name: "RACV car insurance", type: CategoryType.EXPENSE, sortOrder: 31, weekly: 46.29 },
+    { name: "Car rego", type: CategoryType.EXPENSE, sortOrder: 32, weekly: 30.16 },
+    { name: "OpenAI / ChatGPT", type: CategoryType.EXPENSE, sortOrder: 33, weekly: 7.09 },
+    { name: "Apple / Microsoft", type: CategoryType.EXPENSE, sortOrder: 34, weekly: 13.13 },
+    { name: "Google Play", type: CategoryType.EXPENSE, sortOrder: 35, weekly: 1.13 },
+    { name: "Rental tax (Sinking)", type: CategoryType.EXPENSE, sortOrder: 36, weekly: 8.7 },
+    { name: "Mobile Phone", type: CategoryType.EXPENSE, sortOrder: 37, weekly: 12.69 },
+    { name: "Eating Out", type: CategoryType.EXPENSE, sortOrder: 38, weekly: 33.65 },
+    { name: "Uncategorised", type: CategoryType.EXPENSE, sortOrder: 999, weekly: 0 },
   ];
 
   const results: Record<string, string> = {};
@@ -83,16 +111,20 @@ async function seedCategories(householdId: string) {
     const created = await prisma.category.upsert({
       where: { householdId_name: { householdId, name: cat.name } },
       update: { type: cat.type, sortOrder: cat.sortOrder },
-      create: { ...cat, householdId },
+      create: { name: cat.name, type: cat.type, sortOrder: cat.sortOrder, householdId },
     });
     results[cat.name] = created.id;
   }
 
-  return results;
+  return { categoryIds: results, categories };
 }
 
-async function seedBudget(householdId: string, categoryIds: Record<string, string>) {
-  const startsOn = startOfWeek(new Date(), { weekStartsOn: 1 });
+async function seedBudget(
+  householdId: string,
+  categoryIds: Record<string, string>,
+  categories: CategorySeed[],
+) {
+  const startsOn = startOfWeek(new Date(), { weekStartsOn: 0 });
   const existing = await prisma.budget.findFirst({
     where: { householdId, periodType: PeriodType.WEEK, startsOn },
   });
@@ -108,41 +140,55 @@ async function seedBudget(householdId: string, categoryIds: Record<string, strin
         },
       });
 
-  const lines = [
-    { category: "Income", amount: 2000 },
-    { category: "Groceries", amount: 250 },
-    { category: "Fuel", amount: 80 },
-    { category: "Eating Out", amount: 60 },
-    { category: "Insurance", amount: 120 },
-    { category: "Internet", amount: 80 },
-    { category: "Tithe", amount: 50 },
-    { category: "Savings", amount: 100 },
-    { category: "Uncategorised", amount: 0 },
-  ];
-
-  for (const line of lines) {
-    const categoryId = categoryIds[line.category];
+  for (const cat of categories) {
+    if (typeof cat.weekly !== "number") continue;
+    const categoryId = categoryIds[cat.name];
     if (!categoryId) continue;
     await prisma.budgetLine.upsert({
       where: { budgetId_categoryId: { budgetId: budget.id, categoryId } },
-      update: { amount: line.amount },
-      create: {
-        budgetId: budget.id,
-        categoryId,
-        amount: line.amount,
-      },
+      update: { amount: cat.weekly },
+      create: { budgetId: budget.id, categoryId, amount: cat.weekly },
     });
   }
 }
 
 async function seedRules(householdId: string, categoryIds: Record<string, string>) {
   const ruleDefs = [
-    { pattern: "Woolworths", category: "Groceries", matchType: RuleMatchType.CONTAINS, priority: 10 },
-    { pattern: "Coles", category: "Groceries", matchType: RuleMatchType.CONTAINS, priority: 10 },
-    { pattern: "Ampol", category: "Fuel", matchType: RuleMatchType.CONTAINS, priority: 20 },
-    { pattern: "McDonalds", category: "Eating Out", matchType: RuleMatchType.CONTAINS, priority: 30 },
-    { pattern: "Medibank", category: "Insurance", matchType: RuleMatchType.CONTAINS, priority: 40 },
-    { pattern: "Launtel", category: "Internet", matchType: RuleMatchType.CONTAINS, priority: 50 },
+    { pattern: "Woolworths", category: "Groceries", matchType: RuleMatchType.CONTAINS, priority: 5 },
+    { pattern: "Coles", category: "Groceries", matchType: RuleMatchType.CONTAINS, priority: 6 },
+    { pattern: "Big W", category: "Groceries", matchType: RuleMatchType.CONTAINS, priority: 7 },
+    { pattern: "Aldi", category: "Groceries", matchType: RuleMatchType.CONTAINS, priority: 8 },
+    { pattern: "IGA", category: "Groceries", matchType: RuleMatchType.CONTAINS, priority: 9 },
+    { pattern: "Fuel", category: "Fuel", matchType: RuleMatchType.CONTAINS, priority: 15 },
+    { pattern: "Ampol", category: "Fuel", matchType: RuleMatchType.CONTAINS, priority: 16 },
+    { pattern: "Caltex", category: "Fuel", matchType: RuleMatchType.CONTAINS, priority: 17 },
+    { pattern: "BP", category: "Fuel", matchType: RuleMatchType.CONTAINS, priority: 18 },
+    { pattern: "7-Eleven", category: "Fuel", matchType: RuleMatchType.CONTAINS, priority: 19 },
+    { pattern: "Shell", category: "Fuel", matchType: RuleMatchType.CONTAINS, priority: 20 },
+    { pattern: "Medibank", category: "Medibank", matchType: RuleMatchType.CONTAINS, priority: 25 },
+    { pattern: "Tithe", category: "Tithe", matchType: RuleMatchType.CONTAINS, priority: 26 },
+    { pattern: "Rates", category: "Rates", matchType: RuleMatchType.CONTAINS, priority: 27 },
+    { pattern: "Council", category: "Rates", matchType: RuleMatchType.CONTAINS, priority: 28 },
+    { pattern: "Launtel", category: "Internet", matchType: RuleMatchType.CONTAINS, priority: 30 },
+    { pattern: "Telstra", category: "Mobile Phone", matchType: RuleMatchType.CONTAINS, priority: 31 },
+    { pattern: "Optus", category: "Mobile Phone", matchType: RuleMatchType.CONTAINS, priority: 32 },
+    { pattern: "Vodafone", category: "Mobile Phone", matchType: RuleMatchType.CONTAINS, priority: 33 },
+    { pattern: "RACV", category: "RACV car insurance", matchType: RuleMatchType.CONTAINS, priority: 40 },
+    { pattern: "Insurance", category: "RACV insurance (house)", matchType: RuleMatchType.CONTAINS, priority: 41 },
+    { pattern: "Reg", category: "Car rego", matchType: RuleMatchType.CONTAINS, priority: 45 },
+    { pattern: "Netflix", category: "Netflix", matchType: RuleMatchType.CONTAINS, priority: 50 },
+    { pattern: "Spotify", category: "Spotify", matchType: RuleMatchType.CONTAINS, priority: 51 },
+    { pattern: "Apple", category: "Apple / Microsoft", matchType: RuleMatchType.CONTAINS, priority: 52 },
+    { pattern: "Microsoft", category: "Apple / Microsoft", matchType: RuleMatchType.CONTAINS, priority: 53 },
+    { pattern: "Google", category: "Google Play", matchType: RuleMatchType.CONTAINS, priority: 54 },
+    { pattern: "Play", category: "Google Play", matchType: RuleMatchType.CONTAINS, priority: 55 },
+    { pattern: "ChatGPT", category: "OpenAI / ChatGPT", matchType: RuleMatchType.CONTAINS, priority: 56 },
+    { pattern: "OpenAI", category: "OpenAI / ChatGPT", matchType: RuleMatchType.CONTAINS, priority: 57 },
+    { pattern: "Domino", category: "Eating Out", matchType: RuleMatchType.CONTAINS, priority: 60 },
+    { pattern: "McDonald", category: "Eating Out", matchType: RuleMatchType.CONTAINS, priority: 61 },
+    { pattern: "KFC", category: "Eating Out", matchType: RuleMatchType.CONTAINS, priority: 62 },
+    { pattern: "Hungry Jack", category: "Eating Out", matchType: RuleMatchType.CONTAINS, priority: 63 },
+    { pattern: "Subway", category: "Eating Out", matchType: RuleMatchType.CONTAINS, priority: 64 },
   ];
 
   for (const rule of ruleDefs) {
@@ -161,15 +207,15 @@ async function seedRules(householdId: string, categoryIds: Record<string, string
 }
 
 async function main() {
-    let household = await prisma.household.findFirst({ where: { name: householdName } });
+  let household = await prisma.household.findFirst({ where: { name: householdName } });
   if (!household) {
     household = await prisma.household.create({ data: { name: householdName } });
   }
 
   await seedUsers(household.id);
   await seedAccounts(household.id);
-  const categoryIds = await seedCategories(household.id);
-  await seedBudget(household.id, categoryIds);
+  const { categoryIds, categories } = await seedCategories(household.id);
+  await seedBudget(household.id, categoryIds, categories);
   await seedRules(household.id, categoryIds);
 
   console.log("Seed complete");
