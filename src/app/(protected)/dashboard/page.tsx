@@ -18,17 +18,25 @@ function statusColor(status: "green" | "amber" | "red") {
 export default async function DashboardPage({
   searchParams,
 }: {
-  searchParams: { period?: string };
+  searchParams?: Promise<{ period?: string }>;
 }) {
   const session = await auth();
   if (!session?.user?.id) redirect("/login");
   const householdId = await getHouseholdIdForUser(session.user.id);
   if (!householdId) redirect("/settings");
 
-  const requested = (searchParams.period as string | undefined)?.toUpperCase() as PeriodType | undefined;
+  const params = searchParams ? await searchParams : {};
+  const periodParam =
+    typeof params?.period === "string" ? params?.period : undefined;
+  const requested = periodParam?.toUpperCase() as PeriodType | undefined;
   const period = Object.values(PeriodType).includes(requested ?? PeriodType.WEEK)
     ? (requested as PeriodType)
     : PeriodType.WEEK;
+  const periodLabel = typeof period === "string" ? period.toLowerCase() : "week";
+  const fmt0 = (value: number | null | undefined) => {
+    const n = Number(value ?? 0);
+    return Number.isFinite(n) ? n.toFixed(0) : "0";
+  };
 
   const data = await getDashboardData(householdId, period);
   if (!data) {
@@ -52,37 +60,37 @@ export default async function DashboardPage({
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <p className="text-xs uppercase tracking-[0.2em] text-slate-400">At a glance</p>
-          <h2 className="text-2xl font-semibold text-white">This {period.toLowerCase()}</h2>
+          <h2 className="text-2xl font-semibold text-white">This {periodLabel}</h2>
         </div>
         <PeriodTabs active={period} />
       </div>
 
       <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
         <Card className="p-4">
-          <div className="flex items-center gap-2 text-sm text-slate-400">
-            <BarChart3 className="h-4 w-4" />
-            Budget vs spend
-          </div>
-          <div className="mt-3 text-3xl font-semibold text-white">
-            ${(summary.available - summary.spend).toFixed(0)}
-          </div>
-          <p className="text-sm text-slate-300">
-            Available {summary.available.toFixed(0)} • Spent {summary.spend.toFixed(0)}
-          </p>
+        <div className="flex items-center gap-2 text-sm text-slate-400">
+          <BarChart3 className="h-4 w-4" />
+          Budget vs spend
+        </div>
+        <div className="mt-3 text-3xl font-semibold text-white">
+          ${(fmt0(summary.available - summary.spend))}
+        </div>
+        <p className="text-sm text-slate-300">
+          Available {fmt0(summary.available)} • Spent {fmt0(summary.spend)}
+        </p>
           <Badge intent={summary.status === "green" ? "success" : "danger"} className="mt-3">
             {summary.status === "green" ? "Under budget" : "Over budget"}
           </Badge>
         </Card>
 
         <Card className="p-4">
-          <div className="flex items-center gap-2 text-sm text-slate-400">
-            <TrendingUp className="h-4 w-4" />
-            Pacing
-          </div>
-          <div className="mt-3 text-3xl font-semibold text-white">
-            {summary.paceDelta >= 0 ? "+" : "-"}
-            {Math.abs(summary.paceDelta).toFixed(0)}
-          </div>
+        <div className="flex items-center gap-2 text-sm text-slate-400">
+          <TrendingUp className="h-4 w-4" />
+          Pacing
+        </div>
+        <div className="mt-3 text-3xl font-semibold text-white">
+          {summary.paceDelta >= 0 ? "+" : "-"}
+          {fmt0(Math.abs(summary.paceDelta))}
+        </div>
           <p className="text-sm text-slate-300">
             Expected vs actual so far
           </p>
@@ -128,7 +136,7 @@ export default async function DashboardPage({
               <div>
                 <p className="text-sm text-slate-400">{cat.name}</p>
                 <p className="text-xl font-semibold text-white">
-                  ${(cat.available - cat.spend).toFixed(0)} left
+                  ${fmt0(cat.available - cat.spend)} left
                 </p>
               </div>
               <Badge
@@ -145,8 +153,7 @@ export default async function DashboardPage({
             </div>
             <div className="mt-3 flex items-center gap-2 text-sm text-slate-300">
               <Leaf className="h-4 w-4 text-emerald-400" />
-              Budget {cat.budget.toFixed(0)} • Carry {cat.carryIn.toFixed(0)} • Spend{" "}
-              {cat.spend.toFixed(0)}
+              Budget {fmt0(cat.budget)} • Carry {fmt0(cat.carryIn)} • Spend {fmt0(cat.spend)}
             </div>
             <div className="mt-3 h-2 w-full rounded-full bg-slate-800">
               <div

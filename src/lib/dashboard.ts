@@ -63,11 +63,13 @@ export async function getDashboardData(householdId: string, periodType: PeriodTy
   if (!budget) return null;
 
   const spendByCategory = new Map<string, number>();
+  let totalSpendAll = 0;
   transactions.forEach((txn) => {
     const amount = toNumber(txn.amount);
     const value = txn.direction === "DEBIT" ? amount : -amount;
     const current = spendByCategory.get(txn.categoryId ?? "uncategorised") ?? 0;
     spendByCategory.set(txn.categoryId ?? "uncategorised", current + value);
+    totalSpendAll += value;
   });
 
   const carryInByCategory = new Map<string, number>();
@@ -110,6 +112,10 @@ export async function getDashboardData(householdId: string, periodType: PeriodTy
     },
     { budget: 0, spend: 0, carryIn: 0, available: 0, variance: 0 },
   );
+
+  // Use all spend (even uncategorised) for headline numbers.
+  totals.spend = totalSpendAll;
+  totals.variance = totals.budget - totalSpendAll;
 
   const remaining = totals.available - totals.spend;
   const status: "green" | "amber" | "red" = remaining >= 0 ? "green" : "red";

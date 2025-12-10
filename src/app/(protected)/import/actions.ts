@@ -37,27 +37,38 @@ function pickCategoryForDescription(description: string, rules: { pattern: strin
   return null;
 }
 
-export async function importCsvAction(formData: FormData) {
+type ImportResult =
+  | { error: string }
+  | { imported: number; total: number; checksum: string };
+
+export async function importCsvAction(
+  _prevState: ImportResult | null,
+  formData: FormData | null,
+): Promise<ImportResult> {
   const session = await auth();
   if (!session?.user?.id) {
-    throw new Error("Not authenticated");
+    return { error: "Not authenticated" };
+  }
+
+  if (!formData) {
+    return { error: "No form data received" };
   }
 
   const parsed = importSchema.safeParse({
-    accountId: formData.get("accountId")?.toString(),
+    accountId: formData.get("accountId")?.toString() || undefined,
   });
   if (!parsed.success) {
-    throw new Error("Invalid import request");
+    return { error: "Invalid import request" };
   }
 
   const file = formData.get("file");
   if (!(file instanceof File)) {
-    throw new Error("Missing CSV file");
+    return { error: "Missing CSV file" };
   }
 
   const householdId = await getHouseholdIdForUser(session.user.id);
   if (!householdId) {
-    throw new Error("No household found for user");
+    return { error: "No household found for user" };
   }
 
   const buffer = Buffer.from(await file.arrayBuffer());
@@ -77,10 +88,20 @@ export async function importCsvAction(formData: FormData) {
     },
   });
 
-  const rows = parseBendigoCsv(buffer.toString("utf-8"), householdId, parsed.data.accountId);
+  let rows;
+  try {
+    rows = parseBendigoCsv(buffer.toString("utf-8"), householdId, parsed.data.accountId);
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : "Failed to parse CSV";
+    return { error: message };
+  }
   const rules = await prisma.rule.findMany({
     where: { householdId },
     orderBy: { priority: "asc" },
+  });
+  const uncategorised = await prisma.category.findFirst({
+    where: { householdId, name: "Uncategorised" },
+    select: { id: true },
   });
 
   const transactionsToInsert = rows.map((row) => {
@@ -95,7 +116,7 @@ export async function importCsvAction(formData: FormData) {
       direction: row.direction ?? TransactionDirection.DEBIT,
       dedupeHash: row.dedupeHash,
       merchantKey: row.description.toLowerCase(),
-      categoryId,
+      categoryId: categoryId ?? uncategorised?.id ?? null,
     };
   });
 

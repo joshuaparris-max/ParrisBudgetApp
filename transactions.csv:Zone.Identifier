@@ -1,0 +1,4 @@
+[ZoneTransfer]
+ZoneId=3
+ReferrerUrl=https://banking.bendigobank.com.au/banking/accounts/a64c0fe50ae783c810c1acfe2fc88403/transaction_downloads
+HostUrl=https://banking.bendigobank.com.au/banking/api/accounts/a64c0fe50ae783c810c1acfe2fc88403/transaction_download/download?accountId=a64c0fe50ae783c810c1acfe2fc88403&start_date=2025-06-01&end_date=2025-12-09&txn_format=csv

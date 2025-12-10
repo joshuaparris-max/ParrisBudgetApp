@@ -74,6 +74,7 @@ async function seedCategories(householdId: string) {
     { name: "Internet", type: CategoryType.EXPENSE, sortOrder: 50 },
     { name: "Tithe", type: CategoryType.EXPENSE, sortOrder: 60 },
     { name: "Savings", type: CategoryType.EXPENSE, sortOrder: 70 },
+    { name: "Uncategorised", type: CategoryType.EXPENSE, sortOrder: 999 },
   ];
 
   const results: Record<string, string> = {};
@@ -116,6 +117,7 @@ async function seedBudget(householdId: string, categoryIds: Record<string, strin
     { category: "Internet", amount: 80 },
     { category: "Tithe", amount: 50 },
     { category: "Savings", amount: 100 },
+    { category: "Uncategorised", amount: 0 },
   ];
 
   for (const line of lines) {

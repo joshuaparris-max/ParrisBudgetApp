@@ -28,14 +28,44 @@ function parseAmount(value?: string) {
   return Number(cleaned || 0);
 }
 
-export function parseBendigoCsv(content: string, householdId: string, accountId?: string | null) {
-  const records = parse(content, {
+type CsvRecord = Record<string, string>;
+
+function extractDate(row: CsvRecord) {
+  return row.Date || row["Transaction Date"] || row["Value Date"];
+}
+
+function parseRecords(content: string): CsvRecord[] {
+  return parse(content, {
     columns: true,
     skip_empty_lines: true,
     trim: true,
-  }) as Record<string, string>[];
+    relax_column_count: true,
+  }) as CsvRecord[];
+}
+
+export function parseBendigoCsv(content: string, householdId: string, accountId?: string | null) {
+  let records = parseRecords(content);
+
+  // If the file had no headers, csv-parse will treat the first row as headers, leading to missing date.
+  // Detect this by checking for a missing date column and retry with explicit headers.
+  if (records.length && !extractDate(records[0])) {
+    records = parse(content, {
+      columns: ["Date", "Amount", "Description"],
+      skip_empty_lines: true,
+      trim: true,
+      relax_column_count: true,
+    }) as CsvRecord[];
+  }
+
+  if (records.length === 0) {
+    throw new Error("CSV appears empty");
+  }
 
   const rows: ParsedTransaction[] = records.map((row) => {
+    const dateString = extractDate(row);
+    if (!dateString) {
+      throw new Error("Missing date column in CSV");
+    }
     const description =
       row.Description ||
       row["Transaction Description"] ||
@@ -64,7 +94,6 @@ export function parseBendigoCsv(content: string, householdId: string, accountId?
       amount = Math.abs(amount);
     }
 
-    const dateString = row.Date || row["Transaction Date"] || row["Value Date"];
     const date = parseDate(dateString);
 
     const dedupeHash = computeTransactionHash({
