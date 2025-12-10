@@ -1,0 +1,515 @@
+﻿Here you go — Vision + Stack plan + the full “docs we still need” list + Prompt 1 for Codex (VS Code in WSL) for your “Josh & Kristy Budget Keeper” web app.
+________________
+
+
+1) Product vision document (v0.1)
+One-liner
+A private, two-user web app where Josh and Kristy upload Bendigo Bank exports (CSV + PDFs) and instantly see ahead / on track / behind for week / fortnight / month / year, with rollover (leftover carries forward, overspend reduces next period).
+The problem (in plain English)
+Banking apps show transactions, but they don’t give you:
+* a shared target budget
+* a simple traffic-light truth at a glance
+* a rolling “carryover” that matches real life
+* a nag when you haven’t imported data recently
+Primary users
+* Josh (Android / Chrome, sometimes laptop) – wants detail, accuracy, trends, and setup controls
+* Kristy (iPhone / Safari) – wants simple “Are we okay?” and minimal friction
+Goals (what “winning” looks like)
+* Upload → auto-categorise → dashboard updates in under a minute
+* At-a-glance status: Green / Amber / Red
+* Rollover works automatically every new budget period
+* Easy edits: budgets adjustable anytime, with history
+Success metrics
+* Weekly: you both check it ≥3 times
+* Imports stay fresh: no “data stale” warnings most weeks
+* Fewer “Where did the money go?” moments
+Non-goals (for now)
+* No “connect directly to bank” (keep it simple + safe)
+* No complex investing / super / tax forecasting
+* No perfect PDF parsing guarantee (we support it, but allow manual fixes)
+________________
+
+
+2) Core features (MVP)
+A. Budget setup (editable)
+* Budget periods: Weekly / Fortnightly / Monthly / Yearly
+* Category budgets (e.g., Groceries, Fuel, Eating out, Insurance, Tithe, etc.)
+* Income targets optional (nice, but MVP can focus on spend)
+B. Imports (CSV + PDF)
+* Upload Bendigo Bank CSV exports
+* Upload statement PDFs (optional in MVP, but scaffold now)
+* Deduplicate transactions (don’t double count)
+C. Categorisation
+* Rules: “Woolworths → Groceries”, “Launtel → Internet”, etc.
+* Manual override per transaction
+* Rules learn from overrides (“apply this next time?”)
+D. Rollover logic (the key)
+For each category and period:
+* Budgeted = B
+* Actual spend = S
+* Variance = V = B − S
+* Carryover next period = CarryNext = CarryPrev + V
+* Available this period = B + CarryPrev
+So:
+* Spend under → carry increases next period
+* Spend over → carry decreases next period
+(We’ll add optional caps later: e.g., “don’t carry more than $500 in Eating Out”.)
+E. Dashboard (Kristy-friendly)
+* Big status card: “This week: $X under / $Y over”
+* Per-category bars: Budget, Spend, Available (with carry)
+* Top 5 merchants this period
+* “Uploads last synced: X days ago” + warning if > 7 days
+F. Stale data nudges
+* If no imports in 7 days:
+   * show banner on dashboard
+   * optional: email reminder later (phase 2)
+________________
+
+
+3) App overview (screens)
+1. Login (Household: “Parris Family”)
+2. Dashboard (Week default; tabs for Fortnight/Month/Year)
+3. Import page (Upload CSV/PDF, see import history)
+4. Transactions (filter, search, bulk categorise)
+5. Budget editor (adjust category budgets, effective date)
+6. Rules (merchant → category mapping)
+7. Settings (period start day, timezone, accounts)
+________________
+
+
+4) Data model (database plan)
+Users
+* id, name, email, role
+Households
+* id, name
+HouseholdMembers
+* householdId, userId
+Accounts
+* id, householdId, bankName, nickname
+Imports
+* id, householdId, accountId, type (CSV|PDF), filename, uploadedAt, parsedAt, status, checksum
+Transactions
+* id, householdId, accountId, date, description, amount, direction (debit/credit), merchantKey, externalId/hash, categoryId, importId
+Categories
+* id, householdId, name, type (expense|income), sortOrder
+Budgets
+* id, householdId, periodType (week|fortnight|month|year), startsOn, currency
+BudgetLines
+* id, budgetId, categoryId, amount
+RolloverLedger
+* id, householdId, categoryId, periodStart, periodType, carryIn, carryOut
+Rules
+* id, householdId, matchType (contains|regex|startsWith), pattern, categoryId, priority
+Alerts
+* id, householdId, type (stale_import|overspend), createdAt, resolvedAt
+________________
+
+
+5) Stack plan (simple, solid, phone-friendly)
+Recommended stack (fastest to build + easiest hosting)
+* Frontend: Next.js (React) + TypeScript
+* UI: Tailwind + shadcn/ui
+* Backend: Next.js Server Actions + API routes
+* DB: Postgres (Supabase or Neon)
+* ORM: Prisma
+* Auth: Supabase Auth (or NextAuth if you prefer)
+* File storage: Supabase Storage (CSV/PDF originals)
+* PDF parsing: pdf-parse or pdfjs-dist (best effort)
+* CSV parsing: papaparse or csv-parse
+* Jobs/cron: Vercel Cron (daily “stale import” check)
+* Hosting: Vercel (app) + Supabase (db/storage/auth)
+Why this fits you two
+* Works beautifully on iPhone Safari + Android Chrome
+* You can deploy quickly and iterate
+* Keeps your data private and structured
+* Avoids bank-connection complexity
+________________
+
+
+6) Other documentation we need (full list)
+Product / UX
+1. PRD (Product Requirements Doc)
+2. User stories + acceptance criteria
+3. Information architecture (screens + navigation)
+4. Wireframes (mobile-first)
+5. Design system notes (colours, typography, “traffic light” rules)
+Data / Budgeting 6. Budget period definitions (week starts Monday? timezone rules?) 7. Rollover rules spec (global vs per-category, caps, resets) 8. Categorisation rules spec (priority, conflicts, learning) 9. CSV mapping spec (Bendigo formats you’ll upload) 10. PDF ingestion spec (what statements look like, fallbacks)
+Engineering 11. Architecture doc (diagram + component responsibilities) 12. Database schema + migrations plan 13. API contract (even if internal) 14. Security & privacy plan (encryption, access control, backups) 15. Error handling + audit logging spec 16. Testing plan (unit/integration/e2e) 17. Deployment guide (Supabase + Vercel) 18. Runbook (how to recover if imports break, reprocessing, etc.) 19. Observability plan (logging, basic monitoring)
+Ops / Governance 20. Data retention policy (how long to store raw PDFs/CSVs) 21. “Export my data” spec (CSV export) 22. Terms/house rules (it’s private, two users, not financial advice)
+________________
+
+
+7) Prompt 1 for Codex (VS Code in WSL)
+Copy/paste this into Codex (or Cursor) in VS Code on WSL:
+You are a senior full-stack engineer. Build v0.1 of a private budgeting web app for a couple (Josh & Kristy) that runs in web browsers (iPhone Safari, Android Chrome, desktop). The app must support adjustable budgets and importing Bendigo Bank transaction exports (CSV) and optionally statement PDFs.
+
+
+GOALS (MVP):
+1) Authentication: two-user household (email/password ok). One household: "Parris Family".
+2) Budgeting: configurable budget periods (week/fortnight/month/year) and category budget lines (expense categories). Period start day configurable (default Monday) and timezone Australia/Melbourne.
+3) Rollover: per-category carryover across periods:
+   - available = budget + carryIn
+   - variance = budget - actualSpend
+   - carryOut = carryIn + variance
+   Overspend reduces next period; underspend increases next period.
+4) Imports:
+   - Upload CSV files (Bendigo Bank exports). Parse to transactions. Deduplicate on a stable hash (date+amount+description+account) and/or external id if present.
+   - Store import history (uploadedAt, filename, status, counts).
+   - PDFs: scaffold the storage and parsing pipeline, but allow marking PDF parsing as “best effort” with a manual fallback (user can confirm/adjust parsed transactions).
+5) Categorisation:
+   - Categories table (user-editable).
+   - Rules: merchant pattern -> category. Apply on import. Allow manual override on transaction.
+6) Dashboard (mobile-first):
+   - Show at-a-glance status for current week: total budgeted, total spent, net under/over, and a traffic light (green/on track, amber/slightly over, red/over).
+   - Per-category cards: Budget, Spend, Available (with carry).
+   - Show “Data freshness”: days since last import. If > 7 days, show a prominent warning banner: “Upload recent transactions”.
+7) Adjustable budgets:
+   - UI to edit category budgets and effective date (apply from next period start by default).
+   - Keep history (don’t overwrite past periods).
+
+
+TECH STACK REQUIREMENTS:
+- Next.js (App Router) + TypeScript
+- Tailwind + shadcn/ui for components
+- Prisma ORM
+- Postgres database (docker-compose for local dev)
+- Auth: NextAuth or Supabase Auth (choose the simplest that works locally + deployable)
+- File uploads stored locally in dev (./storage) and abstracted so it can be swapped to Supabase Storage later.
+- Use Zod for validation.
+
+
+DELIVERABLES:
+- A working repo with:
+  - docker-compose.yml for Postgres
+  - Prisma schema + migrations
+  - Seed script creating household, categories, sample budgets, and one demo user each for Josh and Kristy
+  - Mobile-first UI pages: /dashboard, /import, /transactions, /budget, /rules, /settings
+  - CSV importer with at least one Bendigo-like mapping, plus a mapping configuration layer for future formats
+  - Rollover computation implemented server-side with tests
+  - README with exact setup steps in WSL (pnpm or npm), environment variables, and how to run migrations and seed.
+
+
+QUALITY BAR:
+- Clean, production-like structure. Strict typing. Defensive parsing. Helpful error messages.
+- No hard-coded magic in UI; budgets/categories come from DB.
+- Include unit tests for rollover math and deduplication hashing.
+- Implement a simple “period engine” that can compute current/previous period boundaries for week/fortnight/month/year.
+
+
+FIRST STEP:
+1) Generate the repo structure and all config.
+2) Implement auth + DB + seed.
+3) Implement categories + budgets + rollover engine (with tests).
+4) Implement CSV import + dashboard.
+
+
+Return only:
+- the file tree
+- then the key files content (docker-compose.yml, prisma schema, rollover engine, csv parser, and main pages)
+- and exact commands to run locally in WSL.
+
+
+________________
+
+
+If you want, next I can write Prompt 2 that feeds Codex your exact starting categories and budget numbers (from your sheet) as a seed file — so your dashboard looks “real” on day one.
+
+
+
+
+PROMPT 2 (Codex in VS Code / WSL) — Seed Josh & Kristy’s real budget + rules + pacing
+
+
+Context:
+You already built (or are building) the v0.1 budgeting web app from Prompt 1 (Next.js App Router + TS + Tailwind/shadcn + Prisma + Postgres + Auth + local file storage in dev). Now update it so the app boots with OUR REAL “target budget” (weekly as source-of-truth) based on the handwritten sheets, and includes initial merchant→category rules from our Bendigo Bank activity.
+
+
+IMPORTANT:
+- Do NOT store any real bank account numbers in the repo.
+- Use weekly values as canonical and derive fortnightly/monthly/yearly in code.
+- Budgets must be editable in the UI and have history (effectiveFrom period start).
+
+
+HOUSEHOLD + USERS (seed):
+- Household: "Parris Family"
+- Users (seed with placeholders): 
+  - Josh: josh@example.com (name "Josh")
+  - Kristy: kristy@example.com (name "Kristy")
+(Passwords handled by auth system; if seeding credentials is messy, implement a “dev login” only when NODE_ENV=development.)
+
+
+BUDGET PERIOD SETTINGS (seed):
+- timezone: Australia/Melbourne
+- week starts: Monday
+- fortnight definition: 2-week periods aligned from a chosen epoch (use ISO week 1 of the year or a fixed start date configurable in Settings)
+- monthly/yearly: calendar based
+
+
+SEED CATEGORIES + WEEKLY TARGETS (based on our sheet):
+Create categories (type income/expense) and seed a default Budget with periodType=week and BudgetLines amountWeekly:
+
+
+INCOME (weekly):
+- "Josh Work" = 1516.73
+- "Kristy Work" = 616.00
+- "Rental Income" = 620.00
+- "Family Tax Benefit" = 60.00
+
+
+EXPENSES (weekly):
+- "School Fees (Sinking)" = 88.00
+- "Nursing Rego (Sinking)" = 2.8846      (=$150/year ÷ 52)
+- "Netflix" = 2.30
+- "ANMF" = 9.2365                        (=$480.30/year ÷ 52)
+- "Spotify" = 0.92
+- "Groceries" = 246.30
+- "Loan Repayments" = 300.00
+- "Fuel" = 75.00
+- "Medibank" = 48.36
+- "Tithe" = 50.00
+- "Rates" = 42.10
+- "Internet" = 23.00
+- "Gas" = 37.67
+- "Electricity" = 29.20
+- "Water" = 32.96
+- "RACV House Insurance" = 24.47
+- "RACV Car Insurance" = 46.29
+- "Car Rego (Sinking)" = 30.16
+- "OpenAI / ChatGPT" = 7.09
+- "Apple / Microsoft Subs" = 13.13
+- "Google Play" = 4.84
+- "Rental Tax (Sinking)" = 87.00
+- "Mobile Phone" = 12.69
+- "Eating Out" = 33.65
+
+
+SEED ACCOUNTS (names only, no numbers):
+- "Joint Card & Bills"
+- "Joint Savings"
+- "Buckland Rent Account"
+- "Rental Tax"
+- "Insurance Sinking"
+- "Sylvie Account"
+- "Elias Account"
+
+
+SEED MERCHANT RULES (initial):
+Create Rules (pattern contains, case-insensitive) with sensible priorities:
+- "Woolworths" -> Groceries
+- "Coles" -> Groceries
+- "EG Ampol" OR "Ampol" -> Fuel
+- "Medibank" -> Medibank
+- "Powershop" -> Electricity (and allow a manual move to Gas if needed)
+- "Launtel" -> Internet
+- "McDonald's" OR "Mcdonald" -> Eating Out
+- "Moe & Co" -> Eating Out
+- "Amazon" -> Groceries (default) OR create "Shopping" category if you think better; if you create Shopping, seed it at $0 weekly (editable)
+- "Officeworks" -> Shopping (if Shopping exists) else Groceries (fallback)
+- "Australia Post" -> Shopping (or a "Postage" category seeded $0)
+- "Vinnies" -> Charity/Op Shop (seed category "Charity/Op Shop" at $0 weekly)
+- "Salvation Army" -> Charity/Op Shop
+- "Uniting Church" -> Tithe
+- "Metalflex" -> Home/Repairs (seed category "Home/Repairs" at $0 weekly)
+
+
+CSV IMPORT (enhancement):
+- Add /sample_data/bendigo_sample.csv (synthetic data) matching common Bendigo export columns.
+- Update importer so it can map Bendigo exports:
+  - date, description, debit/credit/amount, balance if present
+- Ensure dedupe hashing works and doesn’t double-count when re-importing.
+- On import: apply rules, set category, and mark uncategorised as "Uncategorised" (seed at $0 weekly).
+
+
+ROLLOVER + “PACE / BEHIND” STATUS (dashboard enhancement):
+We want two different signals:
+1) Budget result (over/under):
+   - remaining = available - spent
+   - if remaining >= 0 => “Under budget” (green)
+   - if remaining < 0 => “Over budget” (red)
+
+
+2) Pacing (behind / on track):
+   - expectedSpendToDate = available * (elapsedSecondsInPeriod / totalSecondsInPeriod)
+   - paceDelta = expectedSpendToDate - spent
+   - if paceDelta >= 0 => “On track” (green)
+   - if paceDelta < 0 => “Behind” (amber) unless already over budget (red)
+
+
+Implement this for:
+- overall totals
+- each category card
+
+
+DATA FRESHNESS RULE:
+- If last successful import is > 7 days ago: show a prominent banner on dashboard “Uploads are older than a week — import recent transactions”.
+
+
+UI REQUIREMENTS:
+- Dashboard default view = Weekly.
+- Tabs: Week / Fortnight / Month / Year
+- Each tab uses the same budget lines converted from weekly.
+- Budget editor must display weekly as the primary entry field (with derived display values).
+
+
+TESTS:
+- Unit tests for:
+  - period boundary calculations (week/fortnight/month/year)
+  - rollover ledger updates
+  - pacing calculation
+  - rule priority + matching
+  - dedupe hashing
+
+
+DELIVERABLES:
+- Implement the above changes.
+- Return:
+  1) updated file tree (only new/changed highlights)
+  2) the updated seed script
+  3) rules + categories seed data
+  4) any new schema changes + migration
+  5) the dashboard changes (key components)
+  6) exact commands to run in WSL to migrate + seed + start dev server
+
+
+If you want Prompt 3 next, I can write the “import Bendigo PDFs (best-effort) + manual reconcile workflow” prompt so it’s still dead simple for Kristy on iPhone.
+PROMPT 3 (Codex in VS Code / WSL) — PDF statements import + “Review & Reconcile” flow (Kristy-friendly)
+
+
+Context:
+You have the budgeting web app from Prompts 1–2 (Next.js + TS + Tailwind/shadcn + Prisma + Postgres + Auth + CSV import + rollover + pacing + rules + stale upload banner). Now add a BEST-EFFORT pipeline to import Bendigo Bank STATEMENT PDFs and a simple “Review & Reconcile” workflow so Josh & Kristy can trust the numbers without fiddly tech.
+
+
+NON-NEGOTIABLES:
+- Never store real bank account numbers in the repo.
+- PDFs are best-effort: parsing may fail depending on statement format/scanning.
+- If parsing confidence is low, the UI must clearly say so and offer easy manual fixes.
+- Do NOT double-count: reconcile against existing CSV transactions where possible.
+
+
+GOALS (what to build now):
+1) Upload PDF statements (per account).
+2) Parse statement text into candidate transactions (date, description, amount, debit/credit).
+3) Reconcile candidates to existing transactions (from CSV) to avoid duplicates.
+4) Present a clean “Review” queue: approve / merge / ignore / edit category.
+5) Mark import freshness based on “latest transaction date” not just upload date.
+
+
+TECH APPROACH:
+- File storage in dev: ./storage/pdfs/<household>/<importId>.pdf
+- Text extraction: use pdfjs-dist or pdf-parse on the server.
+- If extraction yields near-empty text, mark as “SCANNED/UNREADABLE” and guide user to CSV export instead.
+- Statement parsers should be pluggable:
+  - Start with one generic parser using regex heuristics.
+  - Leave a hook for future “Bendigo format v2” parsers.
+
+
+DATABASE CHANGES:
+Add tables (or extend existing):
+- ImportItems (candidate rows from PDF)
+  fields: id, importId, date, descriptionRaw, amount, direction, balance(optional), confidenceScore(0–1), matchStatus (unmatched|matched|merged|ignored|needs_review), matchedTransactionId(optional)
+- ReconcileActions (audit log)
+  fields: id, userId, importItemId, action(approve|merge|ignore|edit), timestamp, details(JSON)
+
+
+PDF PARSING SPEC (generic):
+- Extract all text; normalise whitespace.
+- Identify statement transaction lines with heuristics:
+  - date pattern: dd/mm/yyyy or dd/mm (infer year from statement period if present)
+  - amount pattern: optional $ and commas, e.g. 1,234.56
+  - direction:
+    - if statement shows separate debit/credit columns, detect which column has value
+    - otherwise infer by leading minus or “DR/CR” markers if present
+- confidence scoring:
+  - +0.4 if date parsed cleanly
+  - +0.3 if amount parsed cleanly
+  - +0.2 if description length reasonable (>=3 words or >=10 chars)
+  - +0.1 if fits expected “transaction line” structure
+  - If confidence < 0.7 => needs_review
+- Also attempt to parse statement period start/end if present; store on Import.
+
+
+RECONCILIATION LOGIC (must):
+When PDF candidate is created, try to match it to an existing Transaction from CSV:
+- Match window: same amount AND date within ±2 days AND similar description (case-insensitive fuzzy contains / trigram / levenshtein)
+- If match found with high similarity:
+  - mark ImportItem as matched, store matchedTransactionId, do NOT create a new Transaction
+- If not matched:
+  - keep as unmatched candidate awaiting approval
+- If user approves an unmatched candidate:
+  - create a new Transaction record and set ImportItem.matchedTransactionId to it
+
+
+DEDUPING RULES (critical):
+- Never create a new Transaction automatically from PDF without either:
+  (a) high confidence AND explicit user auto-approve toggle ON, or
+  (b) user approval click
+For MVP: require user approval for all PDF-derived new transactions.
+
+
+UI / UX REQUIREMENTS (Kristy-first):
+Add pages:
+- /import/pdf  (upload + select account + statement date range if known)
+- /review      (the queue)
+
+
+Review queue layout:
+- Top summary:
+  - “X candidates found”
+  - “Y matched to existing”
+  - “Z need review”
+  - “N unreadable/scanned”
+- Filters: Needs review / Unmatched / Matched / Ignored
+- Each candidate card shows:
+  - Date, Merchant/Description, Amount, Proposed category, Confidence badge
+  - Actions: Approve (creates txn), Merge (link to existing), Ignore, Edit (category/description/date/amount)
+- Bulk actions:
+  - “Approve all high-confidence unmatched” (>=0.85) with confirmation modal
+  - “Ignore all unreadable/blank”
+
+
+MAPPING INTO BUDGET:
+- Approved/new transactions must flow into dashboard totals immediately.
+- Rules should apply to approved transactions as well (merchant patterns).
+- If a candidate is edited, re-run rule matching unless user manually sets category (then lock).
+
+
+DATA FRESHNESS IMPROVEMENT:
+- Replace “last import time” with:
+  - “latest transaction date across all accounts”
+  - stale if latest transaction date is > 7 days behind today (Australia/Melbourne)
+
+
+EDGE CASES TO HANDLE:
+- Transfers between your own accounts:
+  - Detect likely transfers via description keywords (TRANSFER, INTERNET TRANSFER) and matching opposite amount in another account within 1 day.
+  - Categorise as “Transfer (Internal)” and exclude from expense totals by default.
+- Refunds:
+  - If direction is credit with merchant that’s usually a debit, allow category but treat as negative spend.
+
+
+TESTS (required):
+- Unit tests for:
+  - PDF text extraction fallback + scanned detection
+  - parsing transaction lines into structured candidates
+  - confidence scoring thresholds
+  - reconciliation matching (amount/date/description similarity)
+  - “no double counting” invariant
+
+
+DELIVERABLES:
+- Prisma migration
+- Import pipeline code (upload → store → parse → create ImportItems)
+- Review UI pages + actions
+- Updated dashboard freshness logic
+- README updates: how to test with a sample PDF (include a synthetic sample PDF generator if possible)
+
+
+Return only:
+1) updated file tree (new/changed highlights)
+2) prisma schema + migration
+3) core parsing + reconcile code
+4) review UI components/pages
+5) commands to run in WSL
+
+
+If you say “Yes” again, I’ll write Prompt 4 to add: simple email reminders for stale imports + “monthly close” snapshots + exporting a clean CSV for your accountant.
