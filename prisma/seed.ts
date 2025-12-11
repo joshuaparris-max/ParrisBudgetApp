@@ -93,8 +93,9 @@ async function seedCategories(householdId: string) {
   // Income ≈ $2,811/wk, Expenses ≈ $2,788/wk (net ≈ +$23/wk).
   const categories: CategorySeed[] = [
     // Income (observed)
-    { name: "Josh Work", type: CategoryType.INCOME, sortOrder: 1, weekly: 2411.13 },
-    { name: "Kristy Work", type: CategoryType.INCOME, sortOrder: 2, weekly: 0 },
+    // Annual income targets based on tax year: Josh $75,996, Kristy $12,565 ≈ weekly 1,461.46 / 241.64
+    { name: "Josh Work", type: CategoryType.INCOME, sortOrder: 1, weekly: 1461.46 },
+    { name: "Kristy Work", type: CategoryType.INCOME, sortOrder: 2, weekly: 241.64 },
     { name: "Rental Income", type: CategoryType.INCOME, sortOrder: 3, weekly: 0 },
     { name: "Family Tax Benefit", type: CategoryType.INCOME, sortOrder: 4, weekly: 399.59 },
 
