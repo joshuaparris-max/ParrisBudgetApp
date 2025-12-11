@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import Link from "next/link";
 import { Card } from "@/components/ui/card";
 import { PeriodTabs } from "@/components/period-tabs";
+import { cn } from "@/lib/utils";
 
 function statusColor(status: "green" | "amber" | "red") {
   if (status === "green") return "text-emerald-400";
@@ -56,6 +57,28 @@ export default async function DashboardPage({
   const { summary } = data;
   const expenseRemaining = summary.totals.expenseBudget - summary.totals.spend;
   const netPlanned = summary.totals.netPlanned;
+  const freshness = summary.freshnessDays;
+  const lastDataAt = summary.lastDataAt ? new Date(summary.lastDataAt) : null;
+
+  let freshnessLabel = "Up to date";
+  let freshnessIntent: "default" | "warning" | "danger" = "default";
+  let freshnessDetail = lastDataAt ? `Last data: ${lastDataAt.toLocaleDateString()}` : "";
+  if (freshness === null) {
+    freshnessLabel = "No data imported yet";
+    freshnessIntent = "warning";
+    freshnessDetail = "";
+  } else if (freshness > 14) {
+    freshnessLabel = `No new data for ${freshness}d`;
+    freshnessIntent = "danger";
+    freshnessDetail = "Import a CSV to stay on track.";
+  } else if (freshness > 7) {
+    freshnessLabel = `No new data for ${freshness}d`;
+    freshnessIntent = "warning";
+    freshnessDetail = "You haven't imported transactions in over a week.";
+  } else {
+    freshnessLabel = `${freshness}d`;
+    freshnessIntent = "default";
+  }
 
   return (
     <div className="space-y-6">
@@ -149,18 +172,22 @@ export default async function DashboardPage({
           </Badge>
         </Card>
 
-        <Card className="p-4">
+        <Card
+          className={cn(
+            "p-4",
+            freshnessIntent === "warning" && "border border-amber-500/40 bg-amber-500/10",
+            freshnessIntent === "danger" && "border border-rose-500/40 bg-rose-500/10",
+          )}
+        >
           <div className="flex items-center gap-2 text-sm text-slate-400">
             <Clock3 className="h-4 w-4" />
             Data freshness
           </div>
           <div className="mt-3 text-3xl font-semibold text-white">
-            {summary.freshnessDays === null ? "—" : `${summary.freshnessDays}d`}
+            {freshness === null ? "—" : `${freshnessLabel}`}
           </div>
           <p className="text-sm text-slate-300">
-            {summary.freshnessDays !== null && summary.freshnessDays > 7
-              ? "Uploads older than a week"
-              : "Recent uploads"}
+            {freshnessDetail || (freshness !== null && freshness <= 7 ? "Up to date" : "")}
           </p>
         </Card>
       </div>

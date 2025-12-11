@@ -1,5 +1,5 @@
 import { PeriodType } from "@prisma/client";
-import { differenceInDays } from "date-fns";
+import { differenceInCalendarDays, differenceInDays } from "date-fns";
 import { prisma } from "./prisma";
 import { getPeriodBounds, periodSeconds } from "./periods";
 import { calculateRollover, toNumber } from "./rollover";
@@ -29,6 +29,7 @@ export type DashboardSummary = {
   };
   categories: DashboardCategory[];
   freshnessDays: number | null;
+  lastDataAt: Date | null;
 };
 
 export async function getDashboardData(householdId: string, periodType: PeriodType) {
@@ -46,7 +47,7 @@ export async function getDashboardData(householdId: string, periodType: PeriodTy
 
   if (!budget) return null;
 
-  const [transactions, ledgerEntries, lastImport] = await Promise.all([
+  const [transactions, ledgerEntries, lastImport, lastTxn] = await Promise.all([
     prisma.transaction.findMany({
       where: {
         householdId,
@@ -69,6 +70,11 @@ export async function getDashboardData(householdId: string, periodType: PeriodTy
     prisma.import.findFirst({
       where: { householdId, status: "PARSED" },
       orderBy: { uploadedAt: "desc" },
+    }),
+    prisma.transaction.findFirst({
+      where: { householdId },
+      orderBy: { date: "desc" },
+      select: { date: true },
     }),
   ]);
 
@@ -144,9 +150,13 @@ export async function getDashboardData(householdId: string, periodType: PeriodTy
   const pacing: "green" | "amber" | "red" =
     remaining < 0 ? "red" : paceDelta >= 0 ? "green" : "amber";
 
-  const freshnessDays = lastImport
-    ? differenceInDays(new Date(), lastImport.uploadedAt)
-    : null;
+  const lastDataAt = (() => {
+    const importDate = lastImport?.uploadedAt ?? null;
+    const txnDate = lastTxn?.date ?? null;
+    if (importDate && txnDate) return importDate > txnDate ? importDate : txnDate;
+    return importDate ?? txnDate ?? null;
+  })();
+  const freshnessDays = lastDataAt ? differenceInCalendarDays(new Date(), lastDataAt) : null;
 
   const summary: DashboardSummary = {
     totals: {
@@ -161,6 +171,7 @@ export async function getDashboardData(householdId: string, periodType: PeriodTy
     },
     categories,
     freshnessDays,
+    lastDataAt,
   };
 
   return { summary, bounds };

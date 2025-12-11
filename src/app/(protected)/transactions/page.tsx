@@ -11,7 +11,9 @@ export const dynamic = "force-dynamic";
 export default async function TransactionsPage({
   searchParams,
 }: {
-  searchParams?: { category?: string; accountId?: string } | Promise<{ category?: string; accountId?: string }>;
+  searchParams?:
+    | { category?: string; accountId?: string; from?: string; to?: string }
+    | Promise<{ category?: string; accountId?: string; from?: string; to?: string }>;
 }) {
   const session = await auth();
   if (!session?.user?.id) redirect("/login");
@@ -23,15 +25,34 @@ export default async function TransactionsPage({
     typeof resolvedParams?.category === "string" ? resolvedParams.category : undefined;
   const accountParam =
     typeof resolvedParams?.accountId === "string" ? resolvedParams.accountId : undefined;
+  const fromParam = typeof resolvedParams?.from === "string" ? resolvedParams.from : undefined;
+  const toParam = typeof resolvedParams?.to === "string" ? resolvedParams.to : undefined;
+
+  const fromDate = fromParam && !isNaN(new Date(fromParam).getTime()) ? new Date(fromParam) : null;
+  const toDate = toParam && !isNaN(new Date(toParam).getTime()) ? new Date(toParam) : null;
   const categoryFilter =
     categoryParam === "uncategorised"
       ? { categoryId: null }
       : categoryParam
         ? { categoryId: categoryParam }
         : {};
+  const dateFilter =
+    fromDate || toDate
+      ? {
+          date: {
+            ...(fromDate ? { gte: fromDate } : {}),
+            ...(toDate ? { lte: toDate } : {}),
+          },
+        }
+      : {};
 
   const transactions = await prisma.transaction.findMany({
-    where: { householdId, ...categoryFilter, ...(accountParam ? { accountId: accountParam } : {}) },
+    where: {
+      householdId,
+      ...categoryFilter,
+      ...(accountParam ? { accountId: accountParam } : {}),
+      ...dateFilter,
+    },
     orderBy: { date: "desc" },
     take: 200,
     include: { category: true, account: true },
@@ -85,7 +106,7 @@ export default async function TransactionsPage({
           </div>
         )}
         <div className="mt-3 flex flex-wrap items-center gap-3">
-          <form className="flex items-center gap-2" method="get">
+          <form className="flex flex-wrap items-center gap-2" method="get">
             <label className="text-xs uppercase tracking-[0.2em] text-slate-400">Account</label>
             <select
               name="accountId"
@@ -100,6 +121,20 @@ export default async function TransactionsPage({
               ))}
             </select>
             {categoryParam && <input type="hidden" name="category" value={categoryParam} />}
+            <label className="ml-3 text-xs uppercase tracking-[0.2em] text-slate-400">From</label>
+            <input
+              type="date"
+              name="from"
+              defaultValue={fromParam ?? ""}
+              className="rounded-lg border border-slate-700 bg-slate-900/70 px-2 py-1 text-xs text-slate-100"
+            />
+            <label className="ml-3 text-xs uppercase tracking-[0.2em] text-slate-400">To</label>
+            <input
+              type="date"
+              name="to"
+              defaultValue={toParam ?? ""}
+              className="rounded-lg border border-slate-700 bg-slate-900/70 px-2 py-1 text-xs text-slate-100"
+            />
             <button
               type="submit"
               className="rounded-lg bg-slate-800 px-2 py-1 text-xs font-semibold text-white hover:bg-slate-700"
@@ -142,6 +177,13 @@ export default async function TransactionsPage({
               <p className="font-semibold text-white">${Number(accountTotals.net).toFixed(0)}</p>
             </div>
           </div>
+          {(fromParam || toParam) && (
+            <div className="mt-2 text-xs text-slate-400">
+              Showing transactions{" "}
+              {fromParam ? `from ${fromParam}` : "from start"}{" "}
+              {toParam ? `to ${toParam}` : "onwards"}
+            </div>
+          )}
         </Card>
       )}
       <Card className="overflow-hidden">
