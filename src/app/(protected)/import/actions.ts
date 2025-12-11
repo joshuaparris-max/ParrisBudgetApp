@@ -31,113 +31,119 @@ export async function importCsvAction(
   _prevState: ImportResult | null,
   formData: FormData | null,
 ): Promise<ImportResult> {
-  const session = await auth();
-  if (!session?.user?.id) {
-    return { error: "Not authenticated" };
-  }
-
-  if (!formData) {
-    return { error: "No form data received" };
-  }
-
-  const parsed = importSchema.safeParse({
-    accountId: formData.get("accountId")?.toString() || undefined,
-  });
-  if (!parsed.success) {
-    return { error: "Invalid import request" };
-  }
-
-  const files = formData.getAll("files").filter((f): f is File => f instanceof File);
-  if (!files.length) {
-    return { error: "Missing CSV files" };
-  }
-
-  const householdId = await getHouseholdIdForUser(session.user.id);
-  if (!householdId) {
-    return { error: "No household found for user" };
-  }
-
-  const rules = await prisma.rule.findMany({
-    where: { householdId },
-    orderBy: { priority: "asc" },
-  });
-  const uncategorised = await prisma.category.findFirst({
-    where: { householdId, name: "Uncategorised" },
-    select: { id: true },
-  });
-
-  const results: ImportSuccess[] = [];
-
-  for (const file of files) {
-    const buffer = Buffer.from(await file.arrayBuffer());
-    const checksum = crypto.createHash("sha256").update(buffer).digest("hex");
-    const filename = file.name || "import.csv";
-    const storagePath = await saveUpload(file, "csv", `${Date.now()}-${filename}`);
-
-    const importRecord = await prisma.import.create({
-      data: {
-        householdId,
-        accountId: parsed.data.accountId ?? null,
-        type: ImportType.CSV,
-        filename,
-        checksum,
-        status: ImportStatus.PENDING,
-        storagePath,
-      },
-    });
-
-    let rows;
-    try {
-      rows = parseBendigoCsv(buffer.toString("utf-8"), householdId, parsed.data.accountId);
-    } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : "Failed to parse CSV";
-      return { error: `${filename}: ${message}` };
+  try {
+    const session = await auth();
+    if (!session?.user?.id) {
+      return { error: "Not authenticated" };
     }
 
-    const transactionsToInsert = rows.map((row) => {
-      const categoryId = chooseCategoryFromRules(row.description, rules);
-      return {
-        householdId,
-        accountId: parsed.data.accountId,
-        importId: importRecord.id,
-        date: row.date,
-        description: row.description,
-        amount: row.amount,
-        direction: row.direction ?? TransactionDirection.DEBIT,
-        dedupeHash: row.dedupeHash,
-        merchantKey: row.description.toLowerCase(),
-        categoryId: categoryId ?? uncategorised?.id ?? null,
-      };
+    if (!formData) {
+      return { error: "No form data received" };
+    }
+
+    const parsed = importSchema.safeParse({
+      accountId: formData.get("accountId")?.toString() || undefined,
+    });
+    if (!parsed.success) {
+      return { error: "Invalid import request" };
+    }
+
+    const files = formData.getAll("files").filter((f): f is File => f instanceof File);
+    if (!files.length) {
+      return { error: "Missing CSV files" };
+    }
+
+    const householdId = await getHouseholdIdForUser(session.user.id);
+    if (!householdId) {
+      return { error: "No household found for user" };
+    }
+
+    const rules = await prisma.rule.findMany({
+      where: { householdId },
+      orderBy: { priority: "asc" },
+    });
+    const uncategorised = await prisma.category.findFirst({
+      where: { householdId, name: "Uncategorised" },
+      select: { id: true },
     });
 
-    const result = await prisma.transaction.createMany({
-      data: transactionsToInsert,
-      skipDuplicates: true,
-    });
+    const results: ImportSuccess[] = [];
 
-    await prisma.import.update({
-      where: { id: importRecord.id },
-      data: {
-        status: ImportStatus.PARSED,
-        parsedAt: new Date(),
-        totalTransactions: rows.length,
-        processedTransactions: result.count,
-      },
-    });
+    for (const file of files) {
+      const buffer = Buffer.from(await file.arrayBuffer());
+      const checksum = crypto.createHash("sha256").update(buffer).digest("hex");
+      const filename = file.name || "import.csv";
+      const storagePath = await saveUpload(file, "csv", `${Date.now()}-${filename}`);
 
-    results.push({
-      fileName: filename,
-      imported: result.count,
-      total: rows.length,
-      checksum,
-    });
+      const importRecord = await prisma.import.create({
+        data: {
+          householdId,
+          accountId: parsed.data.accountId ?? null,
+          type: ImportType.CSV,
+          filename,
+          checksum,
+          status: ImportStatus.PENDING,
+          storagePath,
+        },
+      });
+
+      let rows;
+      try {
+        rows = parseBendigoCsv(buffer.toString("utf-8"), householdId, parsed.data.accountId);
+      } catch (err: unknown) {
+        const message = err instanceof Error ? err.message : "Failed to parse CSV";
+        return { error: `${filename}: ${message}` };
+      }
+
+      const transactionsToInsert = rows.map((row) => {
+        const categoryId = chooseCategoryFromRules(row.description, rules);
+        return {
+          householdId,
+          accountId: parsed.data.accountId,
+          importId: importRecord.id,
+          date: row.date,
+          description: row.description,
+          amount: row.amount,
+          direction: row.direction ?? TransactionDirection.DEBIT,
+          dedupeHash: row.dedupeHash,
+          merchantKey: row.description.toLowerCase(),
+          categoryId: categoryId ?? uncategorised?.id ?? null,
+        };
+      });
+
+      const result = await prisma.transaction.createMany({
+        data: transactionsToInsert,
+        skipDuplicates: true,
+      });
+
+      await prisma.import.update({
+        where: { id: importRecord.id },
+        data: {
+          status: ImportStatus.PARSED,
+          parsedAt: new Date(),
+          totalTransactions: rows.length,
+          processedTransactions: result.count,
+        },
+      });
+
+      results.push({
+        fileName: filename,
+        imported: result.count,
+        total: rows.length,
+        checksum,
+      });
+    }
+
+    // Recompute current week's ledger so dashboard reflects new spend.
+    await recomputeCurrentWeekLedger(householdId);
+
+    revalidatePath("/dashboard");
+    revalidatePath("/transactions");
+
+    return { results };
+  } catch (err) {
+    console.error("Import failed", err);
+    const message = err instanceof Error ? err.message : "Unknown error";
+    return { error: message };
   }
-
-  // Recompute current week's ledger so dashboard reflects new spend.
-  await recomputeCurrentWeekLedger(householdId);
-
-  revalidatePath("/dashboard");
-  revalidatePath("/transactions");
-
-  return { results };
 }
