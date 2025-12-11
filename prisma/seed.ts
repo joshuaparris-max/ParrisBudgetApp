@@ -42,8 +42,25 @@ async function seedUsers(householdId: string) {
 
 async function seedAccounts(householdId: string) {
   const accounts = [
-    { bankName: "Bendigo Bank", nickname: "Joint Card & Bills" },
-    { bankName: "Bendigo Bank", nickname: "Savings" },
+    // K & J Parris
+    { bankName: "Bendigo Bank", nickname: "Joint Card and Bills Account" },
+    { bankName: "Bendigo Bank", nickname: "Joint Savings Account" },
+    { bankName: "Bendigo Bank", nickname: "Mortgage Loan Account" },
+    // J L Parris
+    { bankName: "Bendigo Bank", nickname: "Josh's everyday access" },
+    { bankName: "Bendigo Bank", nickname: "JOSHUA PARRIS - Sylvie NDIS" },
+    { bankName: "Bendigo Bank", nickname: "Sylvie and Elias School" },
+    { bankName: "Bendigo Bank", nickname: "Rental Tax - $4500 a year" },
+    { bankName: "Bendigo Bank", nickname: "$8500 a year - Insurance" },
+    // K J Parris
+    { bankName: "Bendigo Bank", nickname: "Kristy Everyday Access" },
+    { bankName: "Bendigo Bank", nickname: "Buckland Rent account" },
+    // S M Parris
+    { bankName: "Bendigo Bank", nickname: "Sylvie's Account" },
+    // E D Parris
+    { bankName: "Bendigo Bank", nickname: "Elias's Account" },
+    // Fallback/uncategorised
+    { bankName: "Bendigo Bank", nickname: "Unspecified" },
   ];
 
   for (const account of accounts) {
