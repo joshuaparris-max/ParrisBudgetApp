@@ -54,6 +54,8 @@ export default async function DashboardPage({
   }
 
   const { summary } = data;
+  const expenseRemaining = summary.totals.expenseBudget - summary.totals.spend;
+  const netPlanned = summary.totals.netPlanned;
 
   return (
     <div className="space-y-6">
@@ -65,23 +67,58 @@ export default async function DashboardPage({
         <PeriodTabs active={period} />
       </div>
 
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
         <Card className="p-4">
         <div className="flex items-center gap-2 text-sm text-slate-400">
           <BarChart3 className="h-4 w-4" />
-          Budget vs spend
+          Expense budget vs spend
         </div>
         <div className="mt-3 text-3xl font-semibold text-white">
-          ${(fmt0(summary.totals.available - summary.totals.spend))}
+          ${(fmt0(expenseRemaining))}
         </div>
         <p className="text-sm text-slate-300">
-          Available {fmt0(summary.totals.available)} • Spent {fmt0(summary.totals.spend)}
+          Available {fmt0(summary.totals.expenseBudget)} • Spent {fmt0(summary.totals.spend)}
         </p>
           <Badge intent={summary.totals.status === "green" ? "success" : "danger"} className="mt-3">
             {summary.totals.status === "green" ? "Under budget" : "Over budget"}
           </Badge>
         </Card>
 
+        <Card className="p-4">
+        <div className="flex items-center gap-2 text-sm text-slate-400">
+          <TrendingUp className="h-4 w-4" />
+          Planned income
+        </div>
+        <div className="mt-3 text-3xl font-semibold text-white">
+          ${fmt0(summary.totals.incomeBudget)}
+        </div>
+          <p className="text-sm text-slate-300">Planned income this {periodLabel}</p>
+        </Card>
+
+        <Card className="p-4">
+          <div className="flex items-center gap-2 text-sm text-slate-400">
+            <Leaf className="h-4 w-4" />
+            Planned expenses
+          </div>
+          <div className="mt-3 text-3xl font-semibold text-white">
+            ${fmt0(summary.totals.expenseBudget)}
+          </div>
+          <p className="text-sm text-slate-300">Planned expenses this {periodLabel}</p>
+        </Card>
+
+        <Card className="p-4">
+          <div className="flex items-center gap-2 text-sm text-slate-400">
+            <BarChart3 className="h-4 w-4" />
+            Net (income − expenses)
+          </div>
+          <div className="mt-3 text-3xl font-semibold text-white">
+            ${fmt0(netPlanned)}
+          </div>
+          <p className="text-sm text-slate-300">Planned net position this {periodLabel}</p>
+        </Card>
+      </div>
+
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
         <Card className="p-4">
         <div className="flex items-center gap-2 text-sm text-slate-400">
           <TrendingUp className="h-4 w-4" />

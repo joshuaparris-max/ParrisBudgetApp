@@ -1,8 +1,9 @@
 import { PeriodType } from "@prisma/client";
 import { differenceInDays } from "date-fns";
 import { prisma } from "./prisma";
-import { getPeriodBounds, periodLengthDays, periodSeconds } from "./periods";
+import { getPeriodBounds, periodSeconds } from "./periods";
 import { calculateRollover, toNumber } from "./rollover";
+import { weeklyToPeriod } from "./budgetMath";
 
 export type DashboardCategory = {
   id: string;
@@ -17,11 +18,11 @@ export type DashboardCategory = {
 
 export type DashboardSummary = {
   totals: {
-    budget: number;
-    spend: number;
-    carryIn: number;
-    available: number;
-    variance: number;
+    budget: number; // expense budget for the period
+    spend: number; // actual expense spend for the period
+    incomeBudget: number;
+    expenseBudget: number;
+    netPlanned: number;
     status: "green" | "amber" | "red";
     pacing: "green" | "amber" | "red";
     paceDelta: number;
@@ -36,28 +37,12 @@ export async function getDashboardData(householdId: string, periodType: PeriodTy
 
   // Prefer a budget matching the requested period. If missing (e.g. only weekly is set up),
   // fall back to the latest weekly budget and scale amounts to the requested period length.
-  const directBudget = await prisma.budget.findFirst({
-    where: { householdId, periodType },
+  // Budget rows are stored weekly; we always scale using weeklyToPeriod.
+  const budget = await prisma.budget.findFirst({
+    where: { householdId, periodType: PeriodType.WEEK },
     orderBy: { startsOn: "desc" },
     include: { lines: { include: { category: true } } },
   });
-
-  let budget = directBudget;
-  let budgetScale = 1;
-
-  if (!budget && periodType !== PeriodType.WEEK) {
-    const weekly = await prisma.budget.findFirst({
-      where: { householdId, periodType: PeriodType.WEEK },
-      orderBy: { startsOn: "desc" },
-      include: { lines: { include: { category: true } } },
-    });
-
-    if (weekly) {
-      const days = periodLengthDays(bounds);
-      budget = weekly;
-      budgetScale = days / 7;
-    }
-  }
 
   if (!budget) return null;
 
@@ -67,7 +52,12 @@ export async function getDashboardData(householdId: string, periodType: PeriodTy
         householdId,
         date: { gte: bounds.start, lte: bounds.end },
       },
-      select: { categoryId: true, amount: true, direction: true },
+      select: {
+        categoryId: true,
+        amount: true,
+        direction: true,
+        category: { select: { type: true } },
+      },
     }),
     prisma.rolloverLedger.findMany({
       where: {
@@ -85,10 +75,13 @@ export async function getDashboardData(householdId: string, periodType: PeriodTy
   const spendByCategory = new Map<string, number>();
   let totalSpendAll = 0;
   transactions.forEach((txn) => {
+    // Only count expense spend; skip income categories.
+    if (txn.category?.type === "INCOME") return;
     const amount = toNumber(txn.amount);
     const value = txn.direction === "DEBIT" ? amount : -amount;
-    const current = spendByCategory.get(txn.categoryId ?? "uncategorised") ?? 0;
-    spendByCategory.set(txn.categoryId ?? "uncategorised", current + value);
+    const key = txn.categoryId ?? "uncategorised";
+    const current = spendByCategory.get(key) ?? 0;
+    spendByCategory.set(key, current + value);
     totalSpendAll += value;
   });
 
@@ -98,11 +91,12 @@ export async function getDashboardData(householdId: string, periodType: PeriodTy
   });
 
   const categories: DashboardCategory[] = budget.lines.map((line) => {
-    const budgetAmount = toNumber(line.amount) * budgetScale;
+    const weeklyBudget = toNumber(line.amount);
+    const scaledBudget = weeklyToPeriod(weeklyBudget, periodType as any, bounds);
     const spend = spendByCategory.get(line.categoryId) ?? 0;
     const carryIn = carryInByCategory.get(line.categoryId) ?? 0;
     const rollover = calculateRollover({
-      budget: budgetAmount,
+      budget: scaledBudget,
       carryIn,
       actualSpend: spend,
     });
@@ -113,7 +107,7 @@ export async function getDashboardData(householdId: string, periodType: PeriodTy
     return {
       id: line.categoryId,
       name: line.category.name,
-      budget: budgetAmount,
+      budget: scaledBudget,
       spend,
       carryIn,
       available: rollover.available,
@@ -122,31 +116,31 @@ export async function getDashboardData(householdId: string, periodType: PeriodTy
     };
   });
 
-  const totals = categories.reduce(
-    (acc, item) => {
-      acc.budget += item.budget;
-      acc.spend += item.spend;
-      acc.carryIn += item.carryIn;
-      acc.available += item.available;
-      acc.variance += item.variance;
-      return acc;
-    },
-    { budget: 0, spend: 0, carryIn: 0, available: 0, variance: 0 },
-  );
+  const expenseCategories = categories.filter((c) => {
+    const cat = budget.lines.find((l) => l.categoryId === c.id)?.category;
+    return cat?.type === "EXPENSE";
+  });
+  const incomeCategories = categories.filter((c) => {
+    const cat = budget.lines.find((l) => l.categoryId === c.id)?.category;
+    return cat?.type === "INCOME";
+  });
 
-  // Use all spend (even uncategorised) for headline numbers.
-  totals.spend = totalSpendAll;
-  totals.variance = totals.budget - totalSpendAll;
+  const expenseBudget = expenseCategories.reduce((acc, c) => acc + c.budget, 0);
+  const incomeBudget = incomeCategories.reduce((acc, c) => acc + c.budget, 0);
 
-  const remaining = totals.available - totals.spend;
+  // Use all spend (even uncategorised) for expense spend headline.
+  const totalExpenseSpend = totalSpendAll;
+
+  // Rollover applied only at category-level availability, not the global budget.
+  const remaining = expenseBudget - totalExpenseSpend;
   const status: "green" | "amber" | "red" = remaining >= 0 ? "green" : "red";
 
   const elapsedSeconds = Math.max(
     1,
     periodSeconds(bounds) - Math.max(0, (bounds.end.getTime() - Date.now()) / 1000),
   );
-  const expectedSpendToDate = totals.available * (elapsedSeconds / periodSeconds(bounds));
-  const paceDelta = expectedSpendToDate - totals.spend;
+  const expectedSpendToDate = expenseBudget * (elapsedSeconds / periodSeconds(bounds));
+  const paceDelta = expectedSpendToDate - totalExpenseSpend;
   const pacing: "green" | "amber" | "red" =
     remaining < 0 ? "red" : paceDelta >= 0 ? "green" : "amber";
 
@@ -156,7 +150,11 @@ export async function getDashboardData(householdId: string, periodType: PeriodTy
 
   const summary: DashboardSummary = {
     totals: {
-      ...totals,
+      budget: expenseBudget,
+      spend: totalExpenseSpend,
+      incomeBudget,
+      expenseBudget,
+      netPlanned: incomeBudget - expenseBudget,
       status,
       pacing,
       paceDelta,
