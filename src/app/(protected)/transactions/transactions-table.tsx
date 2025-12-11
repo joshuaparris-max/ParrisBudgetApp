@@ -16,6 +16,7 @@ import { cn } from '@/lib/utils';
 type TransactionRow = {
   id: string;
   date: string;
+  dateLabel: string;
   description: string;
   amount: number;
   direction: TransactionDirection;
@@ -403,9 +404,7 @@ export function TransactionsTable({ transactions, categories }: Props) {
                   onChange={() => toggleSelected(txn.id)}
                   className="h-4 w-4 rounded border-slate-600 bg-slate-800"
                 />
-                <span className="text-slate-300">
-                  {new Date(txn.date).toLocaleDateString()}
-                </span>
+                <span className="text-slate-300">{txn.dateLabel}</span>
                 <span className="truncate" title={txn.description}>
                   {txn.description}
                 </span>

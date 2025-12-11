@@ -86,6 +86,7 @@ export default async function TransactionsPage({
   const tableData = transactions.map((txn) => ({
     id: txn.id,
     date: txn.date.toISOString(),
+    dateLabel: txn.date.toLocaleDateString("en-AU", { timeZone: "UTC" }),
     description: txn.description,
     amount: Number(txn.amount),
     direction: txn.direction,
