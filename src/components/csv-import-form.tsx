@@ -17,7 +17,7 @@ type ImportState =
   | null;
 
 export function CsvImportForm({ accounts }: Props) {
-  const [state, formAction] = useActionState<ImportState>(importCsvAction, null);
+  const [state, formAction] = useActionState<ImportState>(importCsvAction as any, null);
 
   return (
     <form

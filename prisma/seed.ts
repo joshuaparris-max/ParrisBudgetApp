@@ -72,37 +72,43 @@ type CategorySeed = {
 };
 
 async function seedCategories(householdId: string) {
+  // Weekly amounts now aligned to the last ~6 months of actuals from transactions.csv.
+  // Income ≈ $2,811/wk, Expenses ≈ $2,788/wk (net ≈ +$23/wk).
   const categories: CategorySeed[] = [
-    // Income
-    { name: "Josh Work", type: CategoryType.INCOME, sortOrder: 1, weekly: 1516.73 },
-    { name: "Kristy Work", type: CategoryType.INCOME, sortOrder: 2, weekly: 616 },
-    { name: "Rental Income", type: CategoryType.INCOME, sortOrder: 3, weekly: 620 },
-    { name: "Family Tax Benefit", type: CategoryType.INCOME, sortOrder: 4, weekly: 60 },
+    // Income (observed)
+    { name: "Josh Work", type: CategoryType.INCOME, sortOrder: 1, weekly: 2411.13 },
+    { name: "Kristy Work", type: CategoryType.INCOME, sortOrder: 2, weekly: 0 },
+    { name: "Rental Income", type: CategoryType.INCOME, sortOrder: 3, weekly: 0 },
+    { name: "Family Tax Benefit", type: CategoryType.INCOME, sortOrder: 4, weekly: 399.59 },
 
-    // Expenses
-    { name: "Netflix", type: CategoryType.EXPENSE, sortOrder: 10, weekly: 2.3 },
-    { name: "ANMF", type: CategoryType.EXPENSE, sortOrder: 11, weekly: 9.2365 },
-    { name: "Spotify", type: CategoryType.EXPENSE, sortOrder: 12, weekly: 0.92 },
-    { name: "Groceries", type: CategoryType.EXPENSE, sortOrder: 20, weekly: 246.3 },
-    { name: "Loan repayments", type: CategoryType.EXPENSE, sortOrder: 21, weekly: 300 },
-    { name: "Fuel", type: CategoryType.EXPENSE, sortOrder: 22, weekly: 75 },
-    { name: "Medibank", type: CategoryType.EXPENSE, sortOrder: 23, weekly: 48.36 },
-    { name: "Tithe", type: CategoryType.EXPENSE, sortOrder: 24, weekly: 50 },
-    { name: "Rates", type: CategoryType.EXPENSE, sortOrder: 25, weekly: 42.1 },
-    { name: "Internet", type: CategoryType.EXPENSE, sortOrder: 26, weekly: 23 },
-    { name: "Gas", type: CategoryType.EXPENSE, sortOrder: 27, weekly: 37.67 },
-    { name: "Electricity", type: CategoryType.EXPENSE, sortOrder: 28, weekly: 29.2 },
-    { name: "Water", type: CategoryType.EXPENSE, sortOrder: 29, weekly: 32.96 },
-    { name: "RACV insurance (house)", type: CategoryType.EXPENSE, sortOrder: 30, weekly: 29.47 },
-    { name: "RACV car insurance", type: CategoryType.EXPENSE, sortOrder: 31, weekly: 46.29 },
-    { name: "Car rego", type: CategoryType.EXPENSE, sortOrder: 32, weekly: 30.16 },
-    { name: "OpenAI / ChatGPT", type: CategoryType.EXPENSE, sortOrder: 33, weekly: 7.09 },
-    { name: "Apple / Microsoft", type: CategoryType.EXPENSE, sortOrder: 34, weekly: 13.13 },
-    { name: "Google Play", type: CategoryType.EXPENSE, sortOrder: 35, weekly: 1.13 },
-    { name: "Rental tax (Sinking)", type: CategoryType.EXPENSE, sortOrder: 36, weekly: 8.7 },
-    { name: "Mobile Phone", type: CategoryType.EXPENSE, sortOrder: 37, weekly: 12.69 },
-    { name: "Eating Out", type: CategoryType.EXPENSE, sortOrder: 38, weekly: 33.65 },
-    { name: "Uncategorised", type: CategoryType.EXPENSE, sortOrder: 999, weekly: 0 },
+    // Expenses (observed)
+    { name: "Netflix", type: CategoryType.EXPENSE, sortOrder: 10, weekly: 2.05 },
+    { name: "ANMF", type: CategoryType.EXPENSE, sortOrder: 11, weekly: 0 },
+    { name: "Spotify", type: CategoryType.EXPENSE, sortOrder: 12, weekly: 0 },
+    { name: "Groceries", type: CategoryType.EXPENSE, sortOrder: 20, weekly: 243.08 },
+    { name: "Loan repayments", type: CategoryType.EXPENSE, sortOrder: 21, weekly: 290.08 },
+    { name: "Fuel", type: CategoryType.EXPENSE, sortOrder: 22, weekly: 56.73 },
+    { name: "Medibank", type: CategoryType.EXPENSE, sortOrder: 23, weekly: 34.95 },
+    { name: "Tithe", type: CategoryType.EXPENSE, sortOrder: 24, weekly: 0 },
+    { name: "Rates", type: CategoryType.EXPENSE, sortOrder: 25, weekly: 94.16 },
+    { name: "Internet", type: CategoryType.EXPENSE, sortOrder: 26, weekly: 22.83 },
+    { name: "Gas", type: CategoryType.EXPENSE, sortOrder: 27, weekly: 0 },
+    { name: "Electricity", type: CategoryType.EXPENSE, sortOrder: 28, weekly: 0 },
+    { name: "Water", type: CategoryType.EXPENSE, sortOrder: 29, weekly: 0 },
+    { name: "RACV insurance (house)", type: CategoryType.EXPENSE, sortOrder: 30, weekly: 25.24 },
+    { name: "RACV car insurance", type: CategoryType.EXPENSE, sortOrder: 31, weekly: 162.23 },
+    { name: "Car rego", type: CategoryType.EXPENSE, sortOrder: 32, weekly: 0.38 },
+    { name: "OpenAI / ChatGPT", type: CategoryType.EXPENSE, sortOrder: 33, weekly: 7.02 },
+    { name: "Apple / Microsoft", type: CategoryType.EXPENSE, sortOrder: 34, weekly: 10.58 },
+    { name: "Google Play", type: CategoryType.EXPENSE, sortOrder: 35, weekly: 8.5 }, // apps/games
+    { name: "Streaming (YouTube/Dropout)", type: CategoryType.EXPENSE, sortOrder: 36, weekly: 5.5 },
+    { name: "Kids Activities (Bear & Cub)", type: CategoryType.EXPENSE, sortOrder: 37, weekly: 4.5 },
+    // Annual NDIS plan: $16,207.20 over 52 weeks ≈ $311.68/week.
+    { name: "NDIS Therapy (Sylvie)", type: CategoryType.EXPENSE, sortOrder: 38, weekly: 311.68 },
+    { name: "Rental tax (Sinking)", type: CategoryType.EXPENSE, sortOrder: 39, weekly: 0 },
+    { name: "Mobile Phone", type: CategoryType.EXPENSE, sortOrder: 40, weekly: 0 },
+    { name: "Eating Out", type: CategoryType.EXPENSE, sortOrder: 41, weekly: 11.62 },
+    { name: "Uncategorised", type: CategoryType.EXPENSE, sortOrder: 999, weekly: 1496.72 },
   ];
 
   const results: Record<string, string> = {};
@@ -159,6 +165,13 @@ async function seedRules(householdId: string, categoryIds: Record<string, string
     { pattern: "Big W", category: "Groceries", matchType: RuleMatchType.CONTAINS, priority: 7 },
     { pattern: "Aldi", category: "Groceries", matchType: RuleMatchType.CONTAINS, priority: 8 },
     { pattern: "IGA", category: "Groceries", matchType: RuleMatchType.CONTAINS, priority: 9 },
+    { pattern: "Dropout", category: "Streaming (YouTube/Dropout)", matchType: RuleMatchType.CONTAINS, priority: 10 },
+    { pattern: "YouTube", category: "Streaming (YouTube/Dropout)", matchType: RuleMatchType.CONTAINS, priority: 11 },
+    { pattern: "Bear and Cub", category: "Kids Activities (Bear & Cub)", matchType: RuleMatchType.CONTAINS, priority: 12 },
+    { pattern: "Bearcub", category: "Kids Activities (Bear & Cub)", matchType: RuleMatchType.CONTAINS, priority: 13 },
+    { pattern: "Sylvie", category: "NDIS Therapy (Sylvie)", matchType: RuleMatchType.CONTAINS, priority: 14 },
+    { pattern: "NDIS", category: "NDIS Therapy (Sylvie)", matchType: RuleMatchType.CONTAINS, priority: 14 },
+    { pattern: "therapy", category: "NDIS Therapy (Sylvie)", matchType: RuleMatchType.CONTAINS, priority: 14 },
     { pattern: "Fuel", category: "Fuel", matchType: RuleMatchType.CONTAINS, priority: 15 },
     { pattern: "Ampol", category: "Fuel", matchType: RuleMatchType.CONTAINS, priority: 16 },
     { pattern: "Caltex", category: "Fuel", matchType: RuleMatchType.CONTAINS, priority: 17 },

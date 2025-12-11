@@ -9,7 +9,9 @@ const credentialsSchema = z.object({
   password: z.string().min(1),
 });
 
-export const { handlers, auth, signIn, signOut } = NextAuth({
+const NextAuthHandler = NextAuth as any;
+
+export const { handlers, auth, signIn, signOut } = NextAuthHandler({
   providers: [
     Credentials({
       name: "Email",
@@ -42,13 +44,19 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     signIn: "/login",
   },
   callbacks: {
-    jwt: async ({ token, user }) => {
+    jwt: async ({ token, user }: { token: Record<string, unknown>; user?: { id: string } }) => {
       if (user) {
         token.id = user.id;
       }
       return token;
     },
-    session: async ({ session, token }) => {
+    session: async ({
+      session,
+      token,
+    }: {
+      session: { user?: { id?: string } };
+      token?: Record<string, unknown>;
+    }) => {
       if (token?.id && session.user) {
         session.user.id = token.id as string;
       }

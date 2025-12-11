@@ -72,13 +72,13 @@ export default async function DashboardPage({
           Budget vs spend
         </div>
         <div className="mt-3 text-3xl font-semibold text-white">
-          ${(fmt0(summary.available - summary.spend))}
+          ${(fmt0(summary.totals.available - summary.totals.spend))}
         </div>
         <p className="text-sm text-slate-300">
-          Available {fmt0(summary.available)} • Spent {fmt0(summary.spend)}
+          Available {fmt0(summary.totals.available)} • Spent {fmt0(summary.totals.spend)}
         </p>
-          <Badge intent={summary.status === "green" ? "success" : "danger"} className="mt-3">
-            {summary.status === "green" ? "Under budget" : "Over budget"}
+          <Badge intent={summary.totals.status === "green" ? "success" : "danger"} className="mt-3">
+            {summary.totals.status === "green" ? "Under budget" : "Over budget"}
           </Badge>
         </Card>
 
@@ -88,19 +88,27 @@ export default async function DashboardPage({
           Pacing
         </div>
         <div className="mt-3 text-3xl font-semibold text-white">
-          {summary.paceDelta >= 0 ? "+" : "-"}
-          {fmt0(Math.abs(summary.paceDelta))}
+          {summary.totals.paceDelta >= 0 ? "+" : "-"}
+          {fmt0(Math.abs(summary.totals.paceDelta))}
         </div>
           <p className="text-sm text-slate-300">
             Expected vs actual so far
           </p>
           <Badge
             intent={
-              summary.pacing === "green" ? "success" : summary.pacing === "amber" ? "warning" : "danger"
+              summary.totals.pacing === "green"
+                ? "success"
+                : summary.totals.pacing === "amber"
+                  ? "warning"
+                  : "danger"
             }
             className="mt-3"
           >
-            {summary.pacing === "green" ? "On track" : summary.pacing === "amber" ? "Behind" : "Over"}
+            {summary.totals.pacing === "green"
+              ? "On track"
+              : summary.totals.pacing === "amber"
+                ? "Behind"
+                : "Over"}
           </Badge>
         </Card>
 
@@ -163,8 +171,16 @@ export default async function DashboardPage({
                 }}
               />
             </div>
-          </Card>
-        ))}
+          <div className="mt-3 text-sm">
+            <Link
+              href={{ pathname: "/transactions", query: { category: cat.id } }}
+              className="text-brand underline"
+            >
+              View transactions
+            </Link>
+          </div>
+        </Card>
+      ))}
       </div>
     </div>
   );

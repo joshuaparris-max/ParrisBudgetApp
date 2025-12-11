@@ -85,7 +85,7 @@ export function RuleEditor({
               <span className="text-slate-300">{rule.category?.name ?? '—'}</span>
               <span className="text-right">{rule.priority}</span>
               <div className="flex justify-end">
-                <form action={deleteRuleAction}>
+                <form action={deleteRuleAction as any}>
                   <input type="hidden" name="ruleId" value={rule.id} />
                   <Button type="submit" variant="ghost" className="text-rose-300 hover:text-rose-200">
                     Delete

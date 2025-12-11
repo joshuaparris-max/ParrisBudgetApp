@@ -18,7 +18,10 @@ export function CategorySelector({ transactionId, categories, currentCategoryId,
   const [state, formAction] = useActionState(action, null);
 
   return (
-    <form action={formAction} className="flex items-center gap-2 justify-end">
+    <form
+      action={formAction}
+      className="flex flex-wrap items-center justify-end gap-2 sm:flex-nowrap"
+    >
       <input type="hidden" name="transactionId" value={transactionId} />
       <Label className="sr-only" htmlFor={`category-${transactionId}`}>
         Category
@@ -27,7 +30,7 @@ export function CategorySelector({ transactionId, categories, currentCategoryId,
         id={`category-${transactionId}`}
         name="categoryId"
         defaultValue={currentCategoryId ?? ''}
-        className="rounded-lg border border-slate-700 bg-slate-900/70 px-2 py-1 text-xs text-slate-100"
+        className="w-32 shrink-0 rounded-lg border border-slate-700 bg-slate-900/70 px-2 py-1 text-xs text-slate-100"
       >
         <option value="">Uncategorised</option>
         {categories.map((cat) => (
@@ -38,7 +41,7 @@ export function CategorySelector({ transactionId, categories, currentCategoryId,
       </select>
       <button
         type="submit"
-        className="rounded-lg bg-slate-800 px-2 py-1 text-xs font-semibold text-white hover:bg-slate-700"
+        className="shrink-0 rounded-lg bg-slate-800 px-2 py-1 text-xs font-semibold text-white hover:bg-slate-700"
       >
         Save
       </button>

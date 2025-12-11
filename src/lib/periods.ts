@@ -18,6 +18,11 @@ export type PeriodBounds = {
   end: Date;
 };
 
+export function periodLengthDays(bounds: PeriodBounds) {
+  // Inclusive day count across start/end bounds.
+  return Math.round((bounds.end.getTime() - bounds.start.getTime()) / 86_400_000) + 1;
+}
+
 export function getPeriodBounds(
   periodType: PeriodType,
   reference = new Date(),

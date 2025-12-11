@@ -49,9 +49,9 @@ export async function updateTransactionCategoryAction(
 
 export async function autoCategoriseUncategorisedAction() {
   const session = await auth();
-  if (!session?.user?.id) return { error: "Not authenticated" };
+  if (!session?.user?.id) return;
   const householdId = await getHouseholdIdForUser(session.user.id);
-  if (!householdId) return { error: "Household missing" };
+  if (!householdId) return;
 
   const [rules, uncategorised, uncatCategory] = await Promise.all([
     prisma.rule.findMany({ where: { householdId }, orderBy: { priority: "asc" } }),
@@ -77,6 +77,4 @@ export async function autoCategoriseUncategorisedAction() {
   await recomputeCurrentWeekLedger(householdId);
   revalidatePath("/transactions");
   revalidatePath("/dashboard");
-
-  return { success: true, updated };
 }
