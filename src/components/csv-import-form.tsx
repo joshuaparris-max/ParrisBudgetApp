@@ -12,7 +12,7 @@ type Props = {
 };
 
 type ImportState =
-  | { imported: number; total: number; checksum: string }
+  | { results: { fileName: string; imported: number; total: number; checksum: string }[] }
   | { error: string }
   | null;
 
@@ -25,8 +25,8 @@ export function CsvImportForm({ accounts }: Props) {
       className="space-y-4 rounded-xl border border-slate-800 bg-slate-900/70 p-4"
     >
       <div className="space-y-2">
-        <Label htmlFor="file">CSV file</Label>
-        <Input id="file" name="file" type="file" accept=".csv" required />
+        <Label htmlFor="file">CSV files</Label>
+        <Input id="file" name="files" type="file" accept=".csv" multiple required />
       </div>
 
       <div className="space-y-2">
@@ -52,9 +52,17 @@ export function CsvImportForm({ accounts }: Props) {
           {state.error}
         </div>
       )}
-      {state && "imported" in state && (
+      {state && "results" in state && (
         <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-100">
-          Imported {state.imported}/{state.total} transactions (checksum {state.checksum.slice(0, 8)}…)
+          <p className="font-semibold">Imported {state.results.length} file(s):</p>
+          <ul className="mt-2 space-y-1 text-xs">
+            {state.results.map((r) => (
+              <li key={r.checksum}>
+                <span className="font-semibold">{r.fileName}</span> — {r.imported}/{r.total} (checksum{" "}
+                {r.checksum.slice(0, 8)}…)
+              </li>
+            ))}
+          </ul>
         </div>
       )}
     </form>
