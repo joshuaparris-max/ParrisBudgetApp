@@ -3,12 +3,13 @@
 import Link from "next/link";
 import { cn } from "@/lib/utils";
 import { Button } from "./ui/button";
-import { BarChart3, BookOpen, Cog, Layers, ListOrdered, Upload } from "lucide-react";
+import { BarChart3, BookOpen, Cog, Layers, ListOrdered, Upload, Wallet } from "lucide-react";
 import { usePathname } from "next/navigation";
 
 const navItems = [
   { href: "/dashboard", label: "Dashboard", icon: BarChart3 },
   { href: "/import", label: "Import", icon: Upload },
+  { href: "/accounts", label: "Accounts", icon: Wallet },
   { href: "/transactions", label: "Transactions", icon: ListOrdered },
   { href: "/budget", label: "Budget", icon: Layers },
   { href: "/rules", label: "Rules", icon: BookOpen },

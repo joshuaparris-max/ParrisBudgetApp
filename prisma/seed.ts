@@ -147,6 +147,15 @@ async function seedBudget(
   categoryIds: Record<string, string>,
   categories: CategorySeed[],
 ) {
+  // Wipe existing budgets for this household to avoid stale/duplicate lines.
+  await prisma.budgetLine.deleteMany({
+    where: { budget: { householdId } },
+  });
+
+  await prisma.budget.deleteMany({
+    where: { householdId },
+  });
+
   const startsOn = startOfWeek(new Date(), { weekStartsOn: 0 });
   const existing = await prisma.budget.findFirst({
     where: { householdId, periodType: PeriodType.WEEK, startsOn },
@@ -244,6 +253,12 @@ async function main() {
 
   await seedUsers(household.id);
   await seedAccounts(household.id);
+
+  // Clear rollover so stale carry-ins don't inflate new budgets.
+  await prisma.rolloverLedger.deleteMany({
+    where: { householdId: household.id },
+  });
+
   const { categoryIds, categories } = await seedCategories(household.id);
   await seedBudget(household.id, categoryIds, categories);
   await seedRules(household.id, categoryIds);
