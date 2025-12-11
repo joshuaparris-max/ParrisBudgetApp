@@ -122,17 +122,15 @@ export async function getDashboardData(householdId: string, periodType: PeriodTy
     };
   });
 
-  const expenseCategories = categories.filter((c) => {
-    const cat = budget.lines.find((l) => l.categoryId === c.id)?.category;
-    return cat?.type === "EXPENSE";
-  });
-  const incomeCategories = categories.filter((c) => {
-    const cat = budget.lines.find((l) => l.categoryId === c.id)?.category;
-    return cat?.type === "INCOME";
-  });
-
-  const expenseBudget = expenseCategories.reduce((acc, c) => acc + c.budget, 0);
-  const incomeBudget = incomeCategories.reduce((acc, c) => acc + c.budget, 0);
+  const { expenseBudget, incomeBudget } = budget.lines.reduce(
+    (acc, line) => {
+      const amount = weeklyToPeriod(toNumber(line.amount), periodType as any, bounds);
+      if (line.category.type === "INCOME") acc.incomeBudget += amount;
+      else acc.expenseBudget += amount;
+      return acc;
+    },
+    { expenseBudget: 0, incomeBudget: 0 },
+  );
 
   // Use all spend (even uncategorised) for expense spend headline.
   const totalExpenseSpend = totalSpendAll;

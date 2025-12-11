@@ -3,8 +3,8 @@ import { auth } from "@/lib/auth";
 import { getHouseholdIdForUser } from "@/lib/households";
 import { prisma } from "@/lib/prisma";
 import { Card } from "@/components/ui/card";
-import { CategorySelector } from "@/components/category-selector";
-import { autoCategoriseUncategorisedAction, updateTransactionCategoryAction } from "./actions";
+import { autoCategoriseUncategorisedAction } from "./actions";
+import { TransactionsTable } from "./transactions-table";
 
 export const dynamic = "force-dynamic";
 
@@ -55,7 +55,7 @@ export default async function TransactionsPage({
     },
     orderBy: { date: "desc" },
     take: 200,
-    include: { category: true, account: true },
+      include: { category: true, account: true },
   });
 
   const categories = await prisma.category.findMany({
@@ -82,6 +82,15 @@ export default async function TransactionsPage({
     },
     { inflow: 0, outflow: 0, net: 0 },
   );
+
+  const tableData = transactions.map((txn) => ({
+    id: txn.id,
+    date: txn.date.toISOString(),
+    description: txn.description,
+    amount: Number(txn.amount),
+    direction: txn.direction,
+    categoryId: txn.categoryId,
+  }));
 
   return (
     <div className="space-y-4">
@@ -186,42 +195,7 @@ export default async function TransactionsPage({
           )}
         </Card>
       )}
-      <Card className="overflow-hidden">
-        <div className="grid grid-cols-[110px_1fr_170px_120px_200px] gap-2 bg-slate-900/50 px-4 py-2 text-xs font-semibold uppercase tracking-wide text-slate-400">
-          <span>Date</span>
-          <span>Description</span>
-          <span>Category</span>
-          <span className="text-right">Amount</span>
-          <span className="text-right">Update</span>
-        </div>
-        <div className="divide-y divide-slate-800">
-          {transactions.length === 0 && (
-            <div className="px-4 py-3 text-sm text-slate-300">No transactions yet.</div>
-          )}
-          {transactions.map((txn) => (
-            <div
-              key={txn.id}
-              className="grid grid-cols-[110px_1fr_170px_120px_200px] items-center gap-2 px-4 py-2 text-sm text-slate-100"
-            >
-              <span className="text-slate-300">{new Date(txn.date).toLocaleDateString()}</span>
-              <span className="truncate">{txn.description}</span>
-              <span className="text-slate-300">{txn.category?.name ?? "Uncategorised"}</span>
-              <span className="text-right tabular-nums">
-                {txn.direction === "CREDIT" ? "+" : "-"}
-                {Number(txn.amount).toFixed(2)}
-              </span>
-              <div className="text-right">
-                <CategorySelector
-                  transactionId={txn.id}
-                  categories={categories}
-                  currentCategoryId={txn.categoryId ?? undefined}
-                  action={updateTransactionCategoryAction}
-                />
-              </div>
-            </div>
-          ))}
-        </div>
-      </Card>
+      <TransactionsTable transactions={tableData} categories={categories} />
     </div>
   );
 }
